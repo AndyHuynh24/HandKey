@@ -42,13 +42,13 @@ Trained on 12 distinct gesture classes, Handkey recognizes dynamic hand movement
 This section showcases how **Handkey** maps detected gestures to real computer actions —  
 including keyboard shortcuts, typing, mouse control, and file operations.
 
-| ![](Demo/customshortcut.gif) | ![](gifs/action_series.gif) | ![](gifs/action_typing.gif) |
+| ![](Demo/customshortcut.gif) | ![](Demo/openfile.gif) | ![](Demo/actionseries.gif) |
 |:--:|:--:|:--:|
-| **Perform One Shortcut** <br> (Ctrl + right arrow) | **Perform Series of Shortcuts** <br> (e.g., *Open App → Type → Save*) | **Type Preset Text** <br> (e.g., *Auto-type greetings or commands*) |
+| **Perform One Shortcut** <br> (Ctrl + right arrow) | **Open App** <br> (*Open App → Type  → Enter*) | **Perform Series of Shortcuts** <br> (*Open App → Type  → Enter*) |
 
-| ![](gifs/action_mouse.gif) | ![](gifs/action_openfile.gif) |  |
+| ![](Demo/mousecontrol.gif) | ![](Demo/scroll.gif) |
 |:--:|:--:|:--:|
-| **Mouse Control** <br> (move, click, scroll) | **Open File or Folder** <br> (trigger file explorer or app) |  |
+| **Mouse Control** <br> (move, click) | **Scroll up/down** <br> (Hold the gestuer for scrolling up and down) |  |
 
 
 ## 📹 Demo Videos
