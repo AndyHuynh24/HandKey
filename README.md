@@ -15,15 +15,28 @@ Trained on 12 distinct gesture classes, Handkey recognizes dynamic hand movement
 - 💻 **Cross-Platform Ready** – Works on macOS, Windows, and Linux.  
 - 🧩 **Modular Design** – Easy to integrate with other automation tools.
 
+<div align="center">
+
 ## 🎯 Gesture Showcase
 
-| Gesture 1 | Gesture 2 | Gesture 3 | Gesture 4 |
-|------------|------------|------------|------------|
-| ![](Demo/swiperight.gif) | ![](gifs/gesture2.gif) | ![](gifs/gesture3.gif) | ![](gifs/gesture4.gif) |
-| Gesture 5 | Gesture 6 | Gesture 7 | Gesture 8 |
-| ![](gifs/gesture5.gif) | ![](gifs/gesture6.gif) | ![](gifs/gesture7.gif) | ![](gifs/gesture8.gif) |
-| Gesture 9 | Gesture 10 | Gesture 11 | Gesture 12 |
-| ![](gifs/gesture9.gif) | ![](gifs/gesture10.gif) | ![](gifs/gesture11.gif) | ![](gifs/gesture12.gif) |
+| ![](Demo/Left_swipeleft) | ![](Demo/Left_pointyclick.gif) | ![](Demo/Left_middleclick.gif) |
+|:--:|:--:|:--:|
+| Left_swipe | Left_pointyclick | Left_middleclick |
+
+| ![](Demo/Left_ringclick.gif) | ![](Demo/Left_pinkyclick.gif) | ![](Demo/Left_zoom.gif) |
+|:--:|:--:|:--:|
+| Left_ringclick | Left_pinkyclick | Left_zoom |
+
+| ![](Demo/Right_swiperight) | ![](Demo/Right_pointyclick.gif) | ![](Demo/Right_middleclick.gif) |
+|:--:|:--:|:--:|
+| Right_swipe | Right_pointyclick | Right_middleclick |
+
+| ![](Demo/Right_ringclick.gif) | ![](Demo/Right_pinkyclick.gif) | ![](Demo/Right_zoom.gif) |
+|:--:|:--:|:--:|
+| Right_ringclick | Right_pinkyclick | Right_zoom |
+
+</div>
+
 
 
 ## 📹 Demo Videos
