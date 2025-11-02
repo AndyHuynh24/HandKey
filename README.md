@@ -46,7 +46,7 @@ including keyboard shortcuts, typing, mouse control, and file operations.
 |:--:|:--:|:--:|
 | **Perform One Shortcut** <br> (Ctrl + right arrow) | **Open App** <br> (*Open App → Type  → Enter*) | **Perform Series of Shortcuts** <br> (*Open App → Type  → Enter*) |
 
-| ![](Demo/mousecontrol.gif) | ![](Demo/scroll.gif) |
+| ![](Demo/mousecontrol.gif) | ![](Demo/scroll.gif) | |
 |:--:|:--:|:--:|
 | **Mouse Control** <br> (move, click) | **Scroll up/down** <br> (Hold the gestuer for scrolling up and down) |  |
 
