@@ -13,5 +13,10 @@ Trained on 12 distinct gesture classes, Handkey recognizes dynamic hand movement
 - ⚙️ **Real-Time Detection** – Runs smoothly on standard hardware using OpenCV and TensorFlow.  
 - 🧠 **Optimized ML Model** – LSTM/GRU-based sequence classifier trained on thousands of gesture samples with rotation and lighting augmentation.  
 - 💻 **Cross-Platform Ready** – Works on macOS, Windows, and Linux.  
-- 🧩 **Modular Design** – Easy to integrate with other automation tools.  
+- 🧩 **Modular Design** – Easy to integrate with other automation tools.
+
+## 📹 Demo Videos
+
+**Real Application**
+<video src="HandKeyDemo.mp4" width="500" controls></video>
 
