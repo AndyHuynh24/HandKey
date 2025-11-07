@@ -15,12 +15,13 @@ Trained on 12 distinct gesture classes, Handkey recognizes dynamic hand movement
 - 💻 **Cross-Platform Ready** – Works on macOS, Windows, and Linux.  
 - 🧩 **Modular Design** – Easy to integrate with other automation tools.
 
-<div align="center">
-
 ## 📹 Continoues Real Application Demo Videos (NO CUT)
-** The clip is edited with the overlayed video from another camera perspective to showcase the product (but the whole video length is not cut or interrupted)
+-The clip is edited with the overlayed video from another camera perspective to showcase the product (but the whole video length is not cut or interrupted)
+
 [https://github.com/AndyHuynh24/HandKey/issues/1#issue-3579983604](https://github.com/user-attachments/assets/874403e4-094d-43fe-b69d-a0671dce15b1)
 
+
+<div align="center">
 ## 🎯 Gesture Showcase
 
 | ![](Demo/Left_swipeleft.gif) | ![](Demo/Left_pointyclick.gif) | ![](Demo/Left_middleclick.gif) |
