@@ -17,6 +17,10 @@ Trained on 12 distinct gesture classes, Handkey recognizes dynamic hand movement
 
 <div align="center">
 
+## 📹 Continoues Real Application Demo Videos (NO CUT)
+** The clip is edited with the overlayed video from another camera perspective to showcase the product (but the whole video length is not cut or interrupted)
+[https://github.com/AndyHuynh24/HandKey/issues/1#issue-3579983604](https://github.com/user-attachments/assets/874403e4-094d-43fe-b69d-a0671dce15b1)
+
 ## 🎯 Gesture Showcase
 
 | ![](Demo/Left_swipeleft.gif) | ![](Demo/Left_pointyclick.gif) | ![](Demo/Left_middleclick.gif) |
@@ -49,10 +53,6 @@ including keyboard shortcuts, typing, mouse control, and file operations.
 | ![](Demo/mousecontrol.gif) | ![](Demo/scroll.gif) | |
 |:--:|:--:|:--:|
 | **Mouse Control** <br> (move, click) | **Scroll up/down** <br> (Hold the gestuer for scrolling up and down) |  |
-
-
-## 📹 Continoues Real Application Demo Videos (NO CUT, NO EDITTING)
-[https://github.com/AndyHuynh24/HandKey/issues/1#issue-3579983604](https://github.com/user-attachments/assets/874403e4-094d-43fe-b69d-a0671dce15b1)
 
 ## 🧰 Tech Stack
 
