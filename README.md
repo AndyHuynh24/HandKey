@@ -16,7 +16,7 @@ Trained on 12 distinct gesture classes, Handkey recognizes dynamic hand movement
 - 🧩 **Modular Design** – Easy to integrate with other automation tools.
 
 ## 📹 Continoues Real Application Demo Videos (NO CUT)
--The clip is edited with the overlayed video from another camera perspective to showcase the product (but the whole video length is not cut or interrupted)
+The clip is edited with the overlayed video from another camera perspective to showcase the product (but the whole video length is not cut or interrupted)
 
 [https://github.com/AndyHuynh24/HandKey/issues/1#issue-3579983604](https://github.com/user-attachments/assets/874403e4-094d-43fe-b69d-a0671dce15b1)
 
