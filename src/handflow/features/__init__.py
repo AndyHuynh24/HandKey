@@ -1,12 +1,3 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-HandFlow Features Module
-=======================
-
-Feature extraction and engineering for hand gesture recognition.
-"""
-
 from handflow.features.feature_engineer import (
     FeatureEngineer,
     add_acceleration_features,

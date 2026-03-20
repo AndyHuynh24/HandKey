@@ -1,11 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-HandFlow Model Evaluation
-=========================
-
-Module for evaluating gesture recognition models and identifying misclassifications.
-"""
+"""Model evaluation and misclassification analysis."""
 
 from __future__ import annotations
 

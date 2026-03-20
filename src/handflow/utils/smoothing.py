@@ -1,7 +1,6 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
+"""1-Euro filter for low-latency signal smoothing with speed-adaptive cutoff."""
 
 import math
-import time
 
 
 class OneEuroFilter:

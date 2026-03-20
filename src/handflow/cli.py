@@ -1,11 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-HandFlow CLI
-===========
-
-Command-line interface for HandFlow.
-"""
+"""CLI interface for HandFlow training, export, and info commands."""
 
 from __future__ import annotations
 

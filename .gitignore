@@ -83,17 +83,20 @@ dmypy.json
 .ruff_cache/
 
 # --------------------------------------------------
-# Data Files
+# Data Files (protect training data)
 # --------------------------------------------------
-data/processed/
-
-# Note: data/raw/ IS tracked (training data for reproducibility)
+data/
+datasets/
 
 # --------------------------------------------------
-# Model Files
+# Model Files (protect trained weights)
 # --------------------------------------------------
 models/checkpoints/
-# Note: Final trained models (hand_action.*) ARE tracked
+models/*.keras
+models/*.tflite
+models/*.h5
+models/*.pb
+models/*.onnx
 
 # --------------------------------------------------
 # Logs
@@ -198,3 +201,8 @@ RESUME_NOTES.md
 docs/
 *.mp4
 *.m4v
+
+# --------------------------------------------------
+# Public showcase repo (separate repo)
+# --------------------------------------------------
+public/

@@ -1,12 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-Paper MacroPad Visual Feedback Overlay
-======================================
-
-Displays hover and click feedback for the paper macropad.
-Shows a floating overlay with button label when hovering/clicking.
-"""
+"""Hover and click feedback overlay for the paper macropad."""
 
 import sys
 import tkinter as tk

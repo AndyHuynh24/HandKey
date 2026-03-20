@@ -1,12 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-HandFlow Macro Pad Manager
-=========================
-
-Manages ArUco marker-based paper macro pad with touch gesture activation.
-Uses 6-marker corner detection for detection region.
-"""
+"""Manages macro pad sets, touch-based button activation, and action dispatch."""
 
 import time
 import cv2
@@ -218,16 +210,15 @@ class MacroPadManager:
         if effective_hover is None and self._hover_memory_frames < self.HOVER_MEMORY_FRAMES:
             effective_hover = self._last_hovered_button
 
-        # Debug: log touch state changes
         if is_touching != was_touching:
-            print(f"[MacroPad] Touch state changed: {was_touching} -> {is_touching}, hovered={self._hovered_button}, effective={effective_hover}")
+            self.logger.debug(f"[MacroPad] Touch: {was_touching} -> {is_touching}, hover={self._hovered_button}, effective={effective_hover}")
 
         # Check for activation
         # Use effective_hover which includes recent memory for robustness
         # Skip activation if screen overlay is handling it separately (prevents double activation)
         if is_touching and not was_touching and effective_hover is not None:
             if skip_activation:
-                print(f"[MacroPad] Touch detected on button {effective_hover}, but skipping (screen overlay handling)")
+                self.logger.debug(f"[MacroPad] Touch on button {effective_hover}, skipping (screen overlay handling)")
             else:
                 self.logger.info(f"[MacroPad] Touch detected on button {effective_hover}!")
                 self._activate_button(effective_hover)
@@ -241,79 +232,48 @@ class MacroPadManager:
             force_set_id: If provided, use this set ID instead of detected set
                           (used when screen overlay needs to ensure correct set)
         """
-        print(f"[MacroPad] _activate_button called with button_idx={button_idx}, force_set_id={force_set_id}")
-
-        # Check frame-level lock (prevents double activation from paper + screen overlay)
         if self._activation_this_frame:
-            print(f"[MacroPad] Already activated this frame, skipping")
             return
 
         current_time = time.time()
 
-        # Check GLOBAL cooldown (prevents any button from firing too fast)
         if current_time - self._global_last_activation < self.TOUCH_COOLDOWN:
-            remaining = self.TOUCH_COOLDOWN - (current_time - self._global_last_activation)
-            print(f"[MacroPad] Global cooldown active (wait {remaining:.2f}s)")
             return
 
-        # Check per-button cooldown (extra safety)
         last_activation = self._last_activation_time.get(button_idx, 0)
         if current_time - last_activation < self.TOUCH_COOLDOWN:
-            print(f"[MacroPad] Button {button_idx} on cooldown (wait {self.TOUCH_COOLDOWN - (current_time - last_activation):.2f}s)")
             return
 
-        # Get button binding from the appropriate set
         if force_set_id is not None:
-            # Use forced set ID (for screen overlay)
             active_set = self._get_set_by_id(force_set_id)
-            print(f"[MacroPad] Using forced set ID {force_set_id}: {active_set.name if active_set else 'NOT FOUND'}")
         else:
-            # Use detected set
             active_set = self.active_set
 
         if not active_set:
-            print(f"[MacroPad] ✗ No active set found! Detected ID: {self._detector.current_set_id}, Force ID: {force_set_id}")
-            print(f"[MacroPad]   Available sets: {[(s.name, s.set_marker_id) for s in self.setting.macropad_sets]}")
+            self.logger.warning(f"[MacroPad] No active set for ID {force_set_id or self._detector.current_set_id}")
             return
 
         button = active_set.buttons.get(button_idx)
         if not button:
-            print(f"[MacroPad] ✗ Button {button_idx} not configured in set '{active_set.name}'")
             return
 
-        # Get actions (supports both single action and multi-action)
         actions = button.get_actions()
-        if not actions:
-            print(f"[MacroPad] ✗ Button {button_idx} has no actions")
-            return
-
-        # Filter out "none" actions
         valid_actions = [a for a in actions if a.type != "none"]
         if not valid_actions:
-            print(f"[MacroPad] ✗ Button {button_idx} has no valid actions (all are 'none')")
             return
 
-        print(f"[MacroPad] Executing button {button_idx}: {button.label} -> {len(valid_actions)} action(s)")
-        for i, a in enumerate(valid_actions):
-            print(f"[MacroPad]   Action {i+1}: type='{a.type}', value='{a.value}'")
-
-        # Execute action(s)
         if len(valid_actions) == 1:
-            # Single action - execute directly
             result = self.executor.execute(valid_actions[0].type, valid_actions[0].value)
         else:
-            # Multiple actions - execute as sequence with delays
             result = self.executor.execute_sequence(valid_actions)
 
         if result.success:
             self._activated_button = button_idx
-            self._activation_this_frame = True  # Prevent double activation
+            self._activation_this_frame = True
             self._last_activation_time[button_idx] = current_time
-            self._global_last_activation = current_time  # Update global cooldown
-            print(f"[MacroPad] ✓ SUCCESS: Button {button_idx} ({button.label or f'Button {button_idx + 1}'}) -> {len(valid_actions)} action(s)")
+            self._global_last_activation = current_time
             self.logger.info(f"[MacroPad] Activated: {button.label or f'Button {button_idx + 1}'} -> {len(valid_actions)} action(s)")
 
-            # Add to activation log for visual display
             action_summary = valid_actions[0].type if len(valid_actions) == 1 else f"{len(valid_actions)} actions"
             self._activation_log.append(ButtonActivationLog(
                 timestamp=current_time,
@@ -323,8 +283,7 @@ class MacroPadManager:
                 action_value=valid_actions[0].value if len(valid_actions) == 1 else ""
             ))
         else:
-            print(f"[MacroPad] ✗ FAILED: {result.message}")
-            self.logger.info(f"[MacroPad] Action failed: {result.message}")
+            self.logger.warning(f"[MacroPad] Action failed: {result.message}")
     
     def draw_debug(self, frame: np.ndarray) -> np.ndarray:
         """

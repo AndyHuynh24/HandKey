@@ -1,27 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-Experiment Tracker
-==================
-
-Unified experiment tracking module supporting Weights & Biases and TensorBoard.
-Designed to be reusable across different ML projects.
-
-Usage:
-    # Basic usage
-    tracker = ExperimentTracker(
-        project="my-project",
-        experiment_name="experiment-1",
-        use_wandb=True
-    )
-    tracker.start_run("training-run-1", config={"lr": 0.001, "epochs": 100})
-    tracker.log_metrics({"loss": 0.5, "accuracy": 0.9}, step=1)
-    tracker.finish()
-
-    # With context manager
-    with ExperimentTracker(project="my-project") as tracker:
-        tracker.log_metrics({"loss": 0.5})
-"""
+"""Unified experiment tracking with Weights & Biases and TensorBoard backends."""
 
 from __future__ import annotations
 
@@ -239,7 +216,7 @@ class WandBTracker(BaseTracker):
             from wandb.integration.keras import WandbMetricsLogger
             return WandbMetricsLogger()
         except ImportError:
-            print("Warning: WandbMetricsLogger not available")
+            pass
             return None
 
     def finish(self) -> None:
@@ -407,18 +384,16 @@ class ExperimentTracker:
                     entity=self.config.wandb_entity,
                     log_model=self.config.log_model,
                 ))
-                print(f"   Weights & Biases tracking enabled (project: {self.config.wandb_project})")
-            except ImportError as e:
-                print(f"   Warning: {e}")
+            except ImportError:
+                pass
 
         if self.config.tensorboard_enabled:
             try:
                 self._trackers.append(TensorBoardTracker(
                     log_dir=self.config.tensorboard_log_dir
                 ))
-                print(f"   TensorBoard tracking enabled (logs: {self.config.tensorboard_log_dir})")
-            except ImportError as e:
-                print(f"   Warning: {e}")
+            except ImportError:
+                pass
 
     def __enter__(self) -> "ExperimentTracker":
         """Context manager entry."""
@@ -451,7 +426,6 @@ class ExperimentTracker:
             tracker.start_run(run_name, config)
 
         self._run_active = True
-        print(f"   Started run: {run_name}")
 
     def log_metrics(self, metrics: Dict[str, float], step: Optional[int] = None) -> None:
         """Log metrics to all enabled backends.
@@ -547,7 +521,6 @@ class ExperimentTracker:
             tracker.finish()
 
         self._run_active = False
-        print("   Run finished")
 
 
 # Convenience function for quick setup

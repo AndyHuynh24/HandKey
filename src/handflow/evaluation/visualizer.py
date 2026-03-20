@@ -1,11 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-HandFlow Visualizer
-===================
-
-Visualization tools for gesture sequences and features.
-"""
+"""Visualization tools for gesture sequences and engineered features."""
 
 from __future__ import annotations
 

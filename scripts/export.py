@@ -1,17 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-Model Export Script
-===================
-
-Export trained Keras models to TFLite with quantization for fast inference.
-
-Usage:
-    
-    python scripts/export.py --input models/hand_action.keras --output models/hand_action.tflite
-    python scripts/export.py --input models/checkpoints/tcn_20260122_134840_best.h5 --output models/hand_action.tflite
-"""
+"""Export trained Keras models to TFLite for fast inference."""
 
 from __future__ import annotations
 
@@ -19,10 +7,9 @@ import argparse
 import sys
 from pathlib import Path
 
-from handflow.utils import setup_logging, get_logger
-
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from handflow.utils import setup_logging, get_logger
 import tensorflow as tf
 
 
@@ -81,8 +68,6 @@ def export_to_tflite(
             model = tf.keras.models.load_model(input_path, compile=False, safe_mode=False)
         model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
     model.summary()
-    
-    #print(f"\n🔧 Converting to TFLite (quantize={quantize})...")
     
     # For Keras 3 compatibility, save as SavedModel first then convert
     import tempfile

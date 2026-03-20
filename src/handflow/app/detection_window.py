@@ -1,12 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-HandFlow Detection Window
-========================
-
-Handles the real-time detection loop and camera preview.
-Refactored to run UI on main thread (via customtkinter) to avoid macOS threading crashes.
-"""
+"""Real-time detection loop and camera preview. UI runs on main thread to avoid macOS crashes."""
 
 import cv2
 import time
@@ -68,11 +60,10 @@ def disable_app_nap():
         # Prevent macOS from auto-terminating or sudden-terminating the process
         process_info.disableAutomaticTermination_("HandFlow detection active")
         process_info.disableSuddenTermination()
-        print("[Detection] App Nap disabled (PyObjC NSActivityLatencyCritical)")
     except ImportError:
-        print("[Detection] PyObjC not available")
-    except Exception as e:
-        print(f"[Detection] PyObjC method failed: {e}")
+        pass
+    except Exception:
+        pass
 
     # Method 2: ALWAYS run caffeinate alongside PyObjC for extra insurance
     # -d: prevent display sleep, -i: prevent idle sleep,
@@ -84,9 +75,8 @@ def disable_app_nap():
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
-        print("[Detection] caffeinate -dims running (anti-throttle)")
-    except Exception as e:
-        print(f"[Detection] WARNING: caffeinate failed: {e}")
+    except Exception:
+        pass
 
 
 def enable_app_nap():
@@ -285,38 +275,38 @@ class DetectionWindow(ctk.CTkToplevel):
         """Toggle horizontal flip."""
         self.setting.camera.flip_horizontal = not self.setting.camera.flip_horizontal
         self._update_status_label()
-        print(f"[Detection] Horizontal flip: {'ON' if self.setting.camera.flip_horizontal else 'OFF'}")
+        self.logger.debug(f"Horizontal flip: {'ON' if self.setting.camera.flip_horizontal else 'OFF'}")
 
     def _toggle_flip_vertical(self, event=None):
         """Toggle vertical flip."""
         self.setting.camera.flip_vertical = not self.setting.camera.flip_vertical
         self._update_status_label()
-        print(f"[Detection] Vertical flip: {'ON' if self.setting.camera.flip_vertical else 'OFF'}")
+        self.logger.debug(f"Vertical flip: {'ON' if self.setting.camera.flip_vertical else 'OFF'}")
 
     def _toggle_swap_hands(self, event=None):
         """Toggle swap hands (L/R labels)."""
         self.setting.camera.swap_hands = not self.setting.camera.swap_hands
         self._update_status_label()
-        print(f"[Detection] Swap hands: {'ON' if self.setting.camera.swap_hands else 'OFF'}")
+        self.logger.debug(f"Swap hands: {'ON' if self.setting.camera.swap_hands else 'OFF'}")
 
     def _toggle_drawing(self, event=None):
         """Toggle debug drawing."""
         self._disable_drawing = not self._disable_drawing
         self._update_status_label()
-        print(f"[Detection] Drawing: {'OFF' if self._disable_drawing else 'ON'}")
+        self.logger.debug(f"Drawing: {'OFF' if self._disable_drawing else 'ON'}")
 
     def _toggle_fps_cap(self, event=None):
         """Toggle data collection rate limiting (20 FPS)."""
         self._fps_cap_enabled = not self._fps_cap_enabled
         self.gesture_Detector.set_data_rate_limit(self._fps_cap_enabled)
         self._update_status_label()
-        print(f"[Detection] Data Rate Limit: {'ON (20 FPS)' if self._fps_cap_enabled else 'OFF (unlimited)'}")
+        self.logger.debug(f"Data Rate Limit: {'ON (20 FPS)' if self._fps_cap_enabled else 'OFF (unlimited)'}")
 
     def _toggle_screen_overlay_debug(self, event=None):
         """Toggle screen overlay macropad debug info."""
         self._screen_overlay_debug = not self._screen_overlay_debug
         self._update_status_label()
-        print(f"[Detection] Screen Overlay Debug: {'ON' if self._screen_overlay_debug else 'OFF'}")
+        self.logger.debug(f"Screen Overlay Debug: {'ON' if self._screen_overlay_debug else 'OFF'}")
 
     def _toggle_recording(self, event=None):
         """Toggle video recording (raw frames at full resolution)."""
@@ -346,8 +336,7 @@ class DetectionWindow(ctk.CTkToplevel):
         # Start recording thread
         self._recording_thread = threading.Thread(target=self._recording_loop, daemon=True)
         self._recording_thread.start()
-        self.logger.info(f"[Recording] Started: {self._recording_filename} (fixed {self._recording_fps} FPS)")
-        print(f"[Recording] Started: {self._recording_filename} (fixed {self._recording_fps} FPS)")
+        self.logger.info(f"Recording started: {self._recording_filename} ({self._recording_fps} FPS)")
 
     def _recording_loop(self):
         """Recording thread - constant FPS using wall-clock timing for real-time playback."""
@@ -441,12 +430,9 @@ class DetectionWindow(ctk.CTkToplevel):
 
         duration = time.time() - self._recording_start_time if self._recording_start_time else 0
 
-        self.logger.info(f"[Recording] Stopped after {duration:.1f}s")
-        print(f"\n[Recording] Saved: {self._recording_filename}")
-        print(f"  Frames: {self._recording_frame_count}")
-        print(f"  Duration: {duration:.1f} seconds")
-        if duration > 0:
-            print(f"  Actual FPS: {self._recording_frame_count / duration:.1f}")
+        fps = self._recording_frame_count / duration if duration > 0 else 0
+        self.logger.info(f"Recording saved: {self._recording_filename} "
+                        f"({self._recording_frame_count} frames, {duration:.1f}s, {fps:.1f} FPS)")
 
         self._recording_start_time = None
         self._recording_frame_count = 0
@@ -535,10 +521,8 @@ class DetectionWindow(ctk.CTkToplevel):
                 pthread_set_qos.argtypes = [ctypes.c_uint, ctypes.c_int]
                 pthread_set_qos.restype = ctypes.c_int
                 result = pthread_set_qos(QOS_CLASS_USER_INTERACTIVE, 0)
-                if result == 0:
-                    print("[Detection] Thread QoS set to USER_INTERACTIVE (highest)")
-            except Exception as e:
-                print(f"[Detection] Could not set thread QoS: {e}")
+            except Exception:
+                pass
 
         cam_idx = self.setting.camera.index
         consecutive_failures = 0
@@ -850,17 +834,14 @@ class DetectionWindow(ctk.CTkToplevel):
                 self._screen_overlay.set_hovered_button(self._overlay_cmd_hovered_button)
 
                 # Activate button on touch/touch_hold gesture
-                print(f"[ScreenOverlay] Checking activation: activate={self._overlay_cmd_activate}, hovered={self._overlay_cmd_hovered_button}")
                 if self._overlay_cmd_activate and self._overlay_cmd_hovered_button is not None:
                     # Check time-based cooldown to prevent double activation
                     current_time = time.time()
                     if current_time - self._overlay_last_activation_time < 0.5:
-                        print(f"[ScreenOverlay] Skipping - too soon since last activation ({current_time - self._overlay_last_activation_time:.2f}s)")
                         self._overlay_cmd_activate = False
                     else:
                         # Execute button action via macropad_manager
                         # IMPORTANT: Force set ID to screen overlay (20) to ensure correct button set is used
-                        print(f"[ScreenOverlay] >>> ACTIVATING BUTTON {self._overlay_cmd_hovered_button} from SET {SCREEN_OVERLAY_SET_ID} <<<")
                         self.macropad_manager._activate_button(
                             self._overlay_cmd_hovered_button,
                             force_set_id=SCREEN_OVERLAY_SET_ID
@@ -874,10 +855,9 @@ class DetectionWindow(ctk.CTkToplevel):
                         self._screen_overlay.hide()
                         self._screen_overlay.set_cooldown(0.7)  # 0.7 second cooldown before touch_hover can show again
                         self._overlay_cmd_force_hide = False
-                        print(f"[ScreenOverlay] Hidden with 0.7s cooldown")
+                        self.logger.debug("Screen overlay hidden with cooldown")
 
                 elif self._overlay_cmd_activate and self._overlay_cmd_hovered_button is None:
-                    print(f"[ScreenOverlay] Activation requested but no hovered button!")
                     # Still hide and cooldown even if no button was hovered
                     if self._overlay_cmd_force_hide:
                         self._screen_overlay.hide()
@@ -1067,7 +1047,6 @@ class DetectionWindow(ctk.CTkToplevel):
                             self._overlay_no_hover_frames += 1
                             if self._overlay_no_hover_frames >= self._overlay_no_hover_threshold:
                                 # Hide overlay - finger not in region for too long
-                                print(f"[ScreenOverlay] Auto-hide: no finger in region for {self._overlay_no_hover_frames} frames")
                                 self._overlay_cmd_show = False
                                 self._overlay_cmd_force_hide = True
                                 self._overlay_no_hover_frames = 0
@@ -1094,7 +1073,6 @@ class DetectionWindow(ctk.CTkToplevel):
                     self._overlay_cmd_activate = True
                     self._overlay_cmd_force_hide = True
                     self._overlay_touch_processed = True  # Mark as processed
-                    print(f"[ScreenOverlay] TOUCH detected! gesture={current_gesture}, hovered_btn={hovered_btn}")
                 elif finger_over_paper_macropad:
                     # Finger is over paper macropad - don't show/activate screen overlay
                     self._overlay_cmd_show = False

@@ -1,17 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-Model Inference Benchmark
-=========================
-
-Compare inference time across different model architectures.
-
-Usage:
-    python scripts/benchmark_inference.py
-    python scripts/benchmark_inference.py --iterations 500 --warmup 50
-    python scripts/benchmark_inference.py --include-tflite
-"""
+"""Compare inference time across different model architectures."""
 
 from __future__ import annotations
 

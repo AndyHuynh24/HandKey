@@ -1,12 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-Gesture Visual Feedback Overlay
-================================
-
-Displays a floating overlay with the gesture name when a non-touch gesture
-is detected. Styled exactly like the paper macropad button activation feedback.
-"""
+"""Floating overlay that shows gesture name on activation."""
 
 import sys
 import tkinter as tk

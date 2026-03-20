@@ -1,20 +1,7 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
+"""ArUco marker-based screen boundary detection and camera-to-screen coordinate mapping.
 
-"""
-ArUco Marker-Based Screen Detection
-===================================
-
-Detects screen corners using 4 ArUco markers (ID 0-3) placed at screen corners.
-Provides accurate homography transformation from camera space to screen space.
-
-Marker Layout (as seen by camera):
-    [ID 0] -------- [ID 1]
-       |              |
-       |    SCREEN    |
-       |              |
-    [ID 3] -------- [ID 2]
-
-Corner offsets are stored as % of marker bounding box width for scale invariance.
+Four markers (IDs 0-3) at screen corners define a homography for finger-to-pixel mapping.
+Handles partial occlusion (3+ markers visible) via affine/similarity estimation from cache.
 """
 
 import cv2
@@ -63,14 +50,6 @@ class ArUcoCalibration:
 
 
 class ArUcoScreenDetector:
-    """
-    Detects screen boundaries using ArUco markers at corners.
-
-    Provides:
-    - Screen corner detection with sub-pixel accuracy
-    - Adjustable corner offsets (calibrated per-setup)
-    - Homography transformation for finger-to-screen mapping
-    """
 
     CONFIG_FILE = "config/aruco_calibration.yaml"
 

@@ -1,15 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-HandFlow Screen Overlay MacroPad
-================================
-
-Displays ArUco markers on screen exactly like paper macropad.
-The camera sees these markers and macropad_detector handles all detection.
-
-This is NOT a separate detector - it's just a display medium (like paper).
-Uses Set ID 20 (different from paper sets 12, 13, 14).
-"""
+"""Displays ArUco markers on screen for camera-based macropad detection (Set ID 20)."""
 
 import cv2
 import numpy as np
@@ -395,7 +384,7 @@ class ScreenOverlayMacroPad:
 
                 self._visible = True
                 self._hide_grace_counter = 0
-                print(f"[ScreenOverlay] SHOWN at ({self._overlay_x}, {self._overlay_y})")
+                self.logger.debug(f"Overlay shown at ({self._overlay_x}, {self._overlay_y})")
 
     def request_hide(self) -> bool:
         """Request hide with grace period."""
@@ -418,7 +407,7 @@ class ScreenOverlayMacroPad:
         self._visible = False
         self._hide_grace_counter = 0
         self._hovered_button = None
-        print("[ScreenOverlay] HIDDEN (moved off-screen)")
+        self.logger.debug("Overlay hidden")
 
     def hide(self):
         """Force hide."""

@@ -1,7 +1,3 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""HandFlow Core Module."""
-
 from handflow.utils.setting import (
     ActionBinding,
     GestureMapping,
@@ -13,13 +9,10 @@ from handflow.detector.screen_detector import (
     ArUcoCalibrationUI,
     ArUcoCalibration,
 )
-
 from handflow.detector.macropad_manager import MacroPadManager
 from handflow.detector.macropad_detector import MacroPadDetector
 from handflow.detector.handedness_tracker import HandTracker, TrackedHand
-
-from .gesture_detector import GestureDetector  # Added
-
+from .gesture_detector import GestureDetector
 
 __all__ = [
     'ActionBinding',

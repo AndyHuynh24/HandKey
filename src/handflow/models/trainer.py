@@ -1,12 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-HandFlow Model Trainer
-======================
-
-Training pipeline with experiment tracking and on-the-fly augmentation.
-Supports Weights & Biases and TensorBoard for metrics visualization.
-"""
+"""Training pipeline with on-the-fly augmentation, W&B/TensorBoard tracking, and class weighting."""
 
 from __future__ import annotations
 
@@ -30,13 +22,8 @@ if TYPE_CHECKING:
 
 
 class AugmentedDataGenerator(keras.utils.Sequence):
-    """
-    Data generator with on-the-fly augmentation.
-    
-    Applies random augmentations to training data each epoch,
-    providing infinite variety to reduce overfitting.
-    """
-    
+    """Keras data generator that applies random augmentations each epoch."""
+
     def __init__(
         self,
         x: np.ndarray,
@@ -45,16 +32,6 @@ class AugmentedDataGenerator(keras.utils.Sequence):
         augmenter: SequenceAugmenter | None = None,
         shuffle: bool = True,
     ) -> None:
-        """
-        Initialize generator.
-        
-        Args:
-            x: Features, shape (n_samples, seq_len, n_features)
-            y: Labels, shape (n_samples, n_classes)
-            batch_size: Batch size
-            augmenter: SequenceAugmenter for on-the-fly augmentation
-            shuffle: Whether to shuffle data each epoch
-        """
         self.x = x
         self.y = y
         self.batch_size = batch_size
@@ -66,11 +43,9 @@ class AugmentedDataGenerator(keras.utils.Sequence):
             np.random.shuffle(self.indices)
     
     def __len__(self) -> int:
-        """Number of batches per epoch."""
         return int(np.ceil(len(self.x) / self.batch_size))
-    
+
     def __getitem__(self, idx: int) -> tuple[np.ndarray, np.ndarray]:
-        """Get batch at index idx."""
         start = idx * self.batch_size
         end = min(start + self.batch_size, len(self.x))
         batch_indices = self.indices[start:end]
@@ -85,23 +60,11 @@ class AugmentedDataGenerator(keras.utils.Sequence):
         return x_batch, y_batch
     
     def on_epoch_end(self) -> None:
-        """Called at the end of each epoch."""
         if self.shuffle:
             np.random.shuffle(self.indices)
 
 
 class Trainer:
-    """
-    Model trainer with experiment tracking and on-the-fly augmentation.
-
-    Handles:
-    - Training with early stopping and checkpoints
-    - On-the-fly data augmentation
-    - Weights & Biases integration 
-    - TensorBoard logging
-    - Metrics logging and model saving
-    """
-
     def __init__(
         self,
         config: Config,
@@ -110,16 +73,6 @@ class Trainer:
         use_augmentation: bool = True,
         use_class_weights: bool = True,
     ) -> None:
-        """
-        Initialize trainer.
-
-        Args:
-            config: Training configuration.
-            model: Compiled Keras model.
-            experiment_name: Name for experiment tracking.
-            use_augmentation: Whether to apply on-the-fly augmentation.
-            use_class_weights: Whether to use class weighting for imbalanced data.
-        """
         self.config = config
         self.model = model
         self.experiment_name = experiment_name

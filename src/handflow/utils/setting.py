@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
+"""User-facing settings: gesture mappings, macro pad sets, camera config, and inference params."""
 
 from pathlib import Path
 from typing import Optional

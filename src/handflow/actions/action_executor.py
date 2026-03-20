@@ -1,11 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-HandFlow Action Executor
-=======================
-
-Optimized action handlers for gesture and macro pad execution.
-"""
+"""Action execution layer: keyboard shortcuts, mouse control, media keys, and file launching."""
 
 import os
 import sys
@@ -32,9 +25,8 @@ if sys.platform == "darwin":
 else:
     QUARTZ_AVAILABLE = False
 
-# Configure pyautogui for smoother operation
 pyautogui.FAILSAFE = True
-pyautogui.PAUSE = 0.0  # No delay between commands
+pyautogui.PAUSE = 0.0
 
 
 @dataclass
@@ -45,23 +37,14 @@ class ActionResult:
 
 
 class ActionExecutor:
-    """
-    Executes actions for gestures and macro pad buttons.
-    
-    All actions are optimized for smooth, responsive behavior:
-    - Single-increment scrolling/zooming per activation
-    - Platform-native mouse control on macOS
-    - Debounced keystrokes for shortcuts
-    """
-    
-    # Scroll/zoom increments (optimized for smooth feel)
-    SCROLL_INCREMENT = 40  # pixels per scroll action
+    """Dispatches OS-level actions (keyboard, mouse, media, files) with platform-native APIs where available."""
+
+    SCROLL_INCREMENT = 40
     ZOOM_KEYS = {
-        'in': ('command', '='),   # Cmd+= for zoom in
-        'out': ('command', '-'),  # Cmd+- for zoom out
+        'in': ('command', '='),
+        'out': ('command', '-'),
     }
-    
-    # Media keys (macOS specific)
+
     MEDIA_KEYS = {
         'play_pause': 'playpause',
         'next': 'nexttrack', 

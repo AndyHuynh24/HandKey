@@ -1,11 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-HandFlow Gesture Detector
-======================
-
-Core Detector for gesture recognition and processing.
-"""
+"""Real-time gesture detection pipeline: MediaPipe landmarks -> feature engineering -> TFLite inference -> action execution."""
 
 import os
 import time
@@ -30,16 +23,7 @@ if TYPE_CHECKING:
 
 
 class GestureDetector:
-    """
-    Core Detector for hand gesture recognition.
-
-    Pipeline:
-    1. MediaPipe Hand Tracking -> Raw Landmarks
-    2. FeatureEngineer -> Features (positions + distances)
-    3. TFLite Model -> Gesture Classification
-    4. ActionExecutor -> Trigger Mapped Action
-    5. Touch gesture -> Move cursor via ArUco homography
-    """
+    """Runs the full gesture recognition pipeline per frame: tracking, feature extraction, classification, and action dispatch."""
     def __init__(
         self,
         setting: Setting,
@@ -47,22 +31,16 @@ class GestureDetector:
         aruco_detector: Optional["ArUcoScreenDetector"] = None,
     ):
         self.logger = get_logger("handflow.GestureDetector")
-
         self.setting = setting
         self.executor = executor
 
-        # Load config
         from handflow.utils import load_config
         self.config = load_config("config/config.yaml")
 
-        self.DEFAULT_MODEL = self.config.model.model_path 
-
-        # Get gesture classes from config (same as used in training)
+        self.DEFAULT_MODEL = self.config.model.model_path
         self.gesture_classes = self.config.model.gestures
-
         self.logger.info(f"[GestureDetector] Hand gestures: {self.gesture_classes}")
 
-        # Initialize MediaPipe directly 
         self.mp_hands = mp.solutions.hands
         self.mp_drawing = mp.solutions.drawing_utils
         self.hands = self.mp_hands.Hands(
@@ -70,136 +48,102 @@ class GestureDetector:
             min_detection_confidence=self.config.mediapipe.min_detection_confidence,
             min_tracking_confidence=self.config.mediapipe.min_tracking_confidence,
             max_num_hands=self.config.mediapipe.max_num_hands, 
-            model_complexity = self.config.mediapipe.model_complexity
+            model_complexity=self.config.mediapipe.model_complexity
         )
 
-        # Feature engineer
         self.feature_engineer = FeatureEngineer()
-
-        # Models
         self.model_path = self.DEFAULT_MODEL
         self._load_model()
 
-        # Sequence tracking 
         self.sequence_length = self.config.data.sequence_length
         self.right_sequence = []
         self.left_sequence = []
         self.right_lock = False
         self.left_lock = False
 
-        # Prediction history for smoothing
         self.right_predictions = deque(maxlen=10)
         self.left_predictions = deque(maxlen=10)
 
-        # Cooldown 
         self.COOLDOWN_FRAMES = setting.inference.cooldown_frames
         self.right_cooldown = 0
         self.left_cooldown = 0
 
-        # Detection threshold
         self.threshold = self.setting.inference.confidence_threshold
         self.stability_window = self.setting.inference.stability_window
 
-        # Last results for display
         self.res_right = np.zeros(len(self.gesture_classes))
         self.res_left = np.zeros(len(self.gesture_classes))
-
-        # Gesture history for display
         self.gesture_display_history = deque(maxlen=5)
+        self._last_activated_gesture = None  # (gesture_name, hand, timestamp)
 
-        # Last activated non-touch gesture (for visual feedback overlay)
-        # Tuple of (gesture_name, hand, timestamp) or None
-        self._last_activated_gesture = None
-
-        # Track last detected gesture for continuous cursor movement
-        # touch_hover and touch_hold need cursor updates EVERY frame, not just when model runs
+        # touch_hover/touch_hold need cursor updates every frame, not just on model ticks
         self._last_right_gesture = "none"
         self._last_left_gesture = "none"
 
-        # FPS tracking - measures actual data collection rate (keypoints fed to model)
         self._fps_start_time = time.time()
         self._fps_counter = 0
         self.current_fps = 0.0
-        self._data_fps_counter = 0  # Count keypoint additions to sequence
-        self._data_fps = 0.0  # Actual data collection FPS
+        self._data_fps_counter = 0
+        self._data_fps = 0.0
 
-        # ArUco screen detector for touch-to-cursor mapping
         self.aruco_detector = aruco_detector
         self._touch_cursor_enabled = aruco_detector is not None
 
-        # Current finger positions (updated each frame)
         self._right_index_tip: Optional[Tuple[float, float]] = None
         self._left_index_tip: Optional[Tuple[float, float]] = None
-        self._frame_size: Tuple[int, int] = (1280, 720)  # Default, updated on first frame
+        self._frame_size: Tuple[int, int] = (1280, 720)
 
         if self._touch_cursor_enabled:
-            self.logger.info(f"[GestureDetector] Touch-to-cursor enabled via ArUco")
+            self.logger.info("[GestureDetector] Touch-to-cursor enabled via ArUco")
 
-        # Spatial-based hand tracker (replaces MediaPipe's unreliable handedness)
         self.hand_tracker = HandTracker()
 
-        # OneEuroFilters for smoothing
-        # Parameters tuned for responsiveness with smooth motion
-        self._filter_min_cutoff = 1.4   # Lower = smoother, higher = more responsive
-        self._filter_beta = 0.07      # Higher = more reactive to fast movements
+        # OneEuro filter params: min_cutoff controls smoothness, beta controls speed reactivity
+        self._filter_min_cutoff = 1.4
+        self._filter_beta = 0.07
         self._filter_d_cutoff = 1.0
 
-        # Filters for index finger tip positions (stabilize jitter from MediaPipe)
         curr_time = time.time()
         self._right_tip_filter_x = OneEuroFilter(curr_time, 0.5, min_cutoff=self._filter_min_cutoff, beta=self._filter_beta, d_cutoff=self._filter_d_cutoff)
         self._right_tip_filter_y = OneEuroFilter(curr_time, 0.5, min_cutoff=self._filter_min_cutoff, beta=self._filter_beta, d_cutoff=self._filter_d_cutoff)
         self._left_tip_filter_x = OneEuroFilter(curr_time, 0.5, min_cutoff=self._filter_min_cutoff, beta=self._filter_beta, d_cutoff=self._filter_d_cutoff)
         self._left_tip_filter_y = OneEuroFilter(curr_time, 0.5, min_cutoff=self._filter_min_cutoff, beta=self._filter_beta, d_cutoff=self._filter_d_cutoff)
 
-        # Drag state tracking for touch_hold gesture
         self._is_dragging = False
         self._last_drag_pos: Optional[Tuple[int, int]] = None
-        # Drag persistence - don't end drag on brief gesture fluctuations
+        # Grace period prevents brief gesture fluctuations from interrupting drags
         self._drag_end_grace_frames = 0
-        self._drag_grace_max = 2  # Keep drag active for N frames after gesture changes
+        self._drag_grace_max = 2
 
-        # Macropad interaction flag - when True, skip cursor movements
-        # This is set by detection_window when finger is over macropad
         self._macropad_active = False
 
-        # Finger tip position cache for stable touch detection
-        # The finger tip jitters during touch, so we use the position from
-        # a few frames BEFORE the touch gesture is detected
-        self.TOUCH_CACHE_SIZE = 8          # Keep last 8 frames
-        self.TOUCH_CACHE_LOOKBACK = 6      # Use position from 4 frames ago
+        # Cache finger tip positions to use pre-touch frames (less jittery than touch-moment)
+        self.TOUCH_CACHE_SIZE = 8
+        self.TOUCH_CACHE_LOOKBACK = 6
         self._right_tip_cache: deque = deque(maxlen=self.TOUCH_CACHE_SIZE)
         self._left_tip_cache: deque = deque(maxlen=self.TOUCH_CACHE_SIZE)
 
-        # Cached MediaPipe results for frame skipping optimization
         self._cached_mp_results = None
         self._cached_right_kp = None
         self._cached_left_kp = None
 
-        # Delta time tracking for FPS-invariant features
-        # Read target FPS from config for consistency
         target_fps = getattr(self.config.data, 'target_fps', 20.0)
         self._last_delta_time = 1.0 / target_fps
-        self._target_fps = target_fps  # Reference FPS for velocity normalization
+        self._target_fps = target_fps
 
-        # Adaptive frame-based sampling (replaces time-based rate limiting)
-        # This approach:
-        # - Never waits/sleeps - uses all available processing power
-        # - If actual FPS > target: skips frames to hit target rate
-        # - If actual FPS <= target: uses every frame (no data loss)
-        self._data_rate_limit_enabled = True  # Can be toggled
-        self._frame_accumulator = 0.0  # Accumulates frames for sampling
-        self._actual_fps = target_fps  # Measured actual FPS
-        self._fps_sample_times: deque = deque(maxlen=30)  # Rolling window for FPS calculation
+        # Adaptive frame sampling: skip frames when FPS exceeds target, use all when below
+        self._data_rate_limit_enabled = True
+        self._frame_accumulator = 0.0
+        self._actual_fps = target_fps
+        self._fps_sample_times: deque = deque(maxlen=30)
         self._last_frame_time = time.time()
 
-        # Frame interpolation for slow devices
-        # Store last known keypoints for interpolation when frames are missed
+        # Interpolate missing frames on slow devices to maintain temporal consistency
         self._last_right_kp: Optional[np.ndarray] = None
         self._last_left_kp: Optional[np.ndarray] = None
-        self._interpolation_enabled = True  # Fill missing frames with interpolation
+        self._interpolation_enabled = True
 
     def _load_model(self):
-        """Load TFLite models."""
         if os.path.exists(self.model_path):
             try:
                 interpreter = tf.lite.Interpreter(model_path=self.model_path)
@@ -223,94 +167,49 @@ class GestureDetector:
             self.logger.info(f"[GestureDetector] Model not found: {self.model_path}")
 
     def set_aruco_detector(self, detector: "ArUcoScreenDetector") -> None:
-        """Set or update the ArUco screen detector for touch-to-cursor mapping."""
         self.aruco_detector = detector
         self._touch_cursor_enabled = detector is not None
         if self._touch_cursor_enabled:
             self.logger.info(f"[GestureDetector] ArUco detector attached")
 
     def set_macropad_active(self, active: bool) -> None:
-        """
-        Set whether macropad interaction is active.
-        When True, cursor movements from touch gestures are disabled
-        to let the macropad handle the interaction instead.
-        """
+        """Disable cursor movements when macropad is handling touch interaction."""
         self._macropad_active = active
 
     def set_data_rate_limit(self, enabled: bool) -> None:
-        """
-        Enable/disable data collection rate limiting.
-        When enabled, keypoints are collected at exactly target FPS (e.g., 20 FPS).
-        When disabled, keypoints are collected every frame (for testing).
-        """
         self._data_rate_limit_enabled = enabled
 
     def set_interpolation(self, enabled: bool) -> None:
-        """
-        Enable/disable frame interpolation for slow devices.
-        When enabled, missing frames are filled with linear interpolation.
-        This maintains temporal consistency when device runs below target FPS.
-        """
         self._interpolation_enabled = enabled
 
     def _get_cached_tip(self, hand: str) -> Optional[Tuple[float, float]]:
-        """
-        Get finger tip position from cache (a few frames before current).
-
-        When performing a touch gesture, the finger tip jitters at the moment of touch.
-        Using a cached position from a few frames earlier gives more stable/accurate results.
-
-        Args:
-            hand: "Right" or "Left"
-
-        Returns:
-            Cached (x, y) position or None if cache is insufficient
-        """
+        """Return finger tip position from a few frames ago (less jittery than touch-moment position)."""
         cache = self._right_tip_cache if hand == "Right" else self._left_tip_cache
 
         if len(cache) < self.TOUCH_CACHE_LOOKBACK:
             # Not enough history, return current position as fallback
             return self._right_index_tip if hand == "Right" else self._left_index_tip
 
-        # Get position from TOUCH_CACHE_LOOKBACK frames ago
-        # cache[-1] is current, cache[-2] is 1 frame ago, etc.
         lookback_idx = -self.TOUCH_CACHE_LOOKBACK
         return cache[lookback_idx]
 
     def _click_at_touch(self, hand: str) -> bool:
-        """
-        Move cursor to RIGHT hand index finger tip and click using ArUco homography.
-        Only works when ArUco screen is detected.
-        Only triggered when touch gesture is logged (after cooldown).
-
-        Uses CACHED position from a few frames before touch to avoid jitter.
-        """
-        # Skip if macropad is handling interaction
+        """Map finger tip to screen coordinates via ArUco homography and click."""
         if self._macropad_active:
             self.logger.debug("[Touch] Skipped - macropad is active")
             return False
 
-        # Only use right hand
         if hand != "Right":
             return False
-
-        # Must have ArUco detector
         if self.aruco_detector is None:
-            self.logger.info("[Touch] No ArUco detector")
             return False
-
-        # Must have valid screen detection
         if not self.aruco_detector.is_valid:
-            self.logger.info("[Touch] ArUco screen not detected")
             return False
 
-        # Get CACHED finger tip position (more stable than current)
         tip = self._get_cached_tip(hand)
         if tip is None:
-            self.logger.info("[Touch] No finger tip position")
             return False
 
-        # Convert normalized (0-1) to camera pixels
         cam_w, cam_h = self._frame_size
         finger_x = tip[0] * cam_w
         finger_y = tip[1] * cam_h
@@ -333,141 +232,74 @@ class GestureDetector:
         return True
 
     def _move_on_hover(self, hand: str) -> bool:
-        """
-        Move cursor to RIGHT hand index finger tip using ArUco homography.
-        Only works when ArUco screen is detected.
-        """
-        # Skip if macropad is handling interaction
+        """Move cursor to finger tip position via ArUco homography (no click)."""
         if self._macropad_active:
-            self.logger.debug("[Touch_hover] Skipped - macropad is active")
             return False
-
-        # Only use right hand
         if hand != "Right":
             return False
-
-        # Must have ArUco detector
-        if self.aruco_detector is None:
-            self.logger.info("[Touch_hover] No ArUco detector")
+        if self.aruco_detector is None or not self.aruco_detector.is_valid:
             return False
 
-        # Must have valid screen detection
-        if not self.aruco_detector.is_valid:
-            self.logger.info("[Touch_hover] ArUco screen not detected")
-            return False
-
-        # Get right hand index finger tip
         tip = self._right_index_tip
         if tip is None:
-            self.logger.info("[Touch_hover] No finger tip position")
             return False
 
-        # Convert normalized (0-1) to camera pixels
         cam_w, cam_h = self._frame_size
         finger_x = tip[0] * cam_w
         finger_y = tip[1] * cam_h
 
-        self.logger.info(f"[Touch_hover] Finger tip: norm=({tip[0]:.3f}, {tip[1]:.3f}) -> cam_px=({finger_x:.1f}, {finger_y:.1f})")
-
-        # Transform to screen coordinates via homography
         screen_pos = self.aruco_detector.transform_point((finger_x, finger_y))
-
         if screen_pos is None:
-            self.logger.info("[Touch_hover] Homography transform failed")
             return False
 
-        screen_x, screen_y = screen_pos
-
-        final_x, final_y = int(screen_x), int(screen_y)
-
-        self.logger.info(f"[Touch_hover] Screen pos: ({final_x}, {final_y})")
-
-        # Move cursor directly
-        ActionExecutor.move_cursor(final_x, final_y)
-        
+        ActionExecutor.move_cursor(int(screen_pos[0]), int(screen_pos[1]))
         return True
 
     def _drag_on_hold(self, hand: str) -> bool:
-        """
-        Drag with RIGHT hand index finger tip using ArUco homography.
-        First call presses mouse down, subsequent calls move while dragging.
-        Used for touch_hold gesture to drag files/items.
-        """
-        # Skip if macropad is handling interaction
+        """Drag via ArUco homography: first call presses mouse down, subsequent calls move."""
         if self._macropad_active:
-            self.logger.debug("[Touch_hold] Skipped - macropad is active")
             return False
-
-        # Only use right hand
         if hand != "Right":
             return False
-
-        # Must have ArUco detector
-        if self.aruco_detector is None:
-            self.logger.info("[Touch_hold] No ArUco detector")
+        if self.aruco_detector is None or not self.aruco_detector.is_valid:
             return False
 
-        # Must have valid screen detection
-        if not self.aruco_detector.is_valid:
-            self.logger.info("[Touch_hold] ArUco screen not detected")
-            return False
-
-        # Get right hand index finger tip
         tip = self._right_index_tip
         if tip is None:
-            self.logger.info("[Touch_hold] No finger tip position")
             return False
 
-        # Convert normalized (0-1) to camera pixels
         cam_w, cam_h = self._frame_size
         finger_x = tip[0] * cam_w
         finger_y = tip[1] * cam_h
 
-        # Transform to screen coordinates via homography
         screen_pos = self.aruco_detector.transform_point((finger_x, finger_y))
-
         if screen_pos is None:
-            self.logger.info("[Touch_hold] Homography transform failed")
             return False
 
-        screen_x, screen_y = screen_pos
-
-        # Finger tip is already smoothed in process_frame
-        final_x, final_y = int(screen_x), int(screen_y)
+        final_x, final_y = int(screen_pos[0]), int(screen_pos[1])
 
         if not self._is_dragging:
-            # First frame of drag - press mouse down
             self.logger.info(f"[Touch_hold] Starting drag at ({final_x}, {final_y})")
             ActionExecutor.mouse_down(final_x, final_y)
             self._is_dragging = True
             self._last_drag_pos = (final_x, final_y)
         else:
-            # Continue dragging - move with mouse held
-            self.logger.info(f"[Touch_hold] Dragging to ({final_x}, {final_y})")
             ActionExecutor.drag_move(final_x, final_y)
             self._last_drag_pos = (final_x, final_y)
         
         return True
 
     def _update_continuous_cursor(self):
-        """
-        Update cursor position EVERY frame for touch_hover and touch_hold gestures.
-        This is called every frame (not just when gesture model runs) for smooth movement.
-        """
-        # Update drag grace period countdown
+        """Called every frame (not just model ticks) to keep touch cursor smooth."""
         self._update_drag_grace()
 
-        # Only handle right hand for now
         gesture = self._last_right_gesture
-
-        # Skip if no finger tip detected
         if self._right_index_tip is None:
             return
 
         if gesture == "touch_hover":
             self._move_on_hover("Right")
         elif gesture == "touch_hold":
-            # Cancel any pending drag end - gesture is still touch_hold
             self._cancel_end_drag()
             self._drag_on_hold("Right")
 

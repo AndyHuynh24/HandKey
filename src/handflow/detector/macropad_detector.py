@@ -1,27 +1,7 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
+"""Paper macro pad detection via ArUco markers with fallback bottom-corner markers.
 
-"""
-HandFlow MacroPad Detector
-==========================
-
-8-marker corner-based detection system for paper macro pad.
-
-Marker Layout (as seen by camera):
-    [TL: Set ID]              [TR: ID 4]
-           |                       |
-    [ML: ID 5]                [MR: ID 6]
-           |                       |
-    [BL2: ID 9]              [BR2: ID 10]  <- Outer fallback markers
-           |                       |
-           [BL: ID 7]    [BR: ID 8]        <- Inner bottom markers
-
-Detection region corners:
-- Top-left: TL marker's top-right corner
-- Top-right: TR marker's top-left corner
-- Bottom-left: BL's top-left corner OR BL2's bottom-right corner (fallback)
-- Bottom-right: BR's top-right corner OR BR2's bottom-left corner (fallback)
-
-Divides into 4x3 grid for 12 buttons.
+8 markers define a detection region subdivided into a button grid (4x2 for paper, 4x3 for screen overlay).
+Handles partial occlusion by estimating missing corners from visible markers + cache.
 """
 
 import cv2
@@ -41,25 +21,6 @@ class MacroPadDetection:
 
 
 class MacroPadDetector:
-    """
-    Detects macro pad using 8 markers with fallback bottom corners.
-
-    Logic mirrors ArUcoScreenDetector:
-    - Uses TL, TR, BL, BR as primary corner markers
-    - BL2, BR2 provide fallback bottom corners when BL/BR are occluded
-    - Requires at least 3 visible corners to estimate the 4th
-    - Uses Homography (4 pts) or Affine (3 pts) transform for estimation
-    - Middle markers (ML, MR) help with corner estimation
-
-    Marker Layout:
-        [TL]              [TR]
-           |              |
-        [ML]              [MR]
-           |              |
-        [BL2]            [BR2]  <- Fallback outer markers
-           |              |
-           [BL]      [BR]       <- Primary inner markers
-    """
     
     # Position names for debugging and mapping
     POS_TL = 'TL'
@@ -233,7 +194,8 @@ class MacroPadDetector:
         
         if ids is None:
             self._detection_valid = False
-            return False
+            return False\
+    
         
         # -------------------------------------------------
         # 1. Map all detected markers by ID (with outlier rejection)

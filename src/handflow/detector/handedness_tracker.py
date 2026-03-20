@@ -1,18 +1,5 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-HandFlow Hand Tracker - Robust Edition
-=======================================
-
-Combines spatial tracking with MediaPipe's handedness predictions using
-a stability window for reliable hand labeling.
-
-Key features:
-1. Spatial tracking via centroid continuity
-2. MediaPipe handedness as geometry-based signal (thumb position)
-3. Majority voting over stability window for label decisions
-4. Phantom double-detection filtering
-5. Hysteresis to prevent label flickering
+"""Spatial hand tracker that stabilizes MediaPipe's noisy handedness labels via centroid
+continuity tracking and majority voting over a sliding window.
 """
 
 import numpy as np

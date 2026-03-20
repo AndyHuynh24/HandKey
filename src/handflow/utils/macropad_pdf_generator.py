@@ -1,33 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-HandFlow Origami MacroPad PDF Generator
-=======================================
-
-Generates a foldable A4 PDF with 2 macropad sets for origami-style stand.
-Each set has 8 markers and a 4x3 button grid with circle indicators.
-
-Marker Layout (8 markers):
-    [TL: Set ID]              [TR: ID 4]
-           |                       |
-    [ML: ID 5]                [MR: ID 6]
-           |                       |
-    [BL2: ID 9]              [BR2: ID 10]  <- NEW outer bottom markers
-           |                       |
-           [BL: ID 7]    [BR: ID 8]        <- inner bottom markers
-
-Detection uses:
-- Bottom-left corner: BL2's bottom-right OR BL's top-left (whichever visible)
-- Bottom-right corner: BR2's bottom-left OR BR's top-right (whichever visible)
-
-Layout:
-- Portrait A4
-- 1.8cm top margin
-- 2.5cm left/right margins
-- 2 equal sections for 2 sets
-- Each section: markers region + 1.8cm info margin
-- Fold guide lines between sections and on margins
-"""
+"""Generate foldable A4 PDF with ArUco-marked macropad sets for origami-style stand."""
 
 import os
 import cv2

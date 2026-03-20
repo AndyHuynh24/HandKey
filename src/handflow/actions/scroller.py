@@ -1,11 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-HandFlow Continuous Scroller
-===========================
-
-Smooth continuous scrolling with adjustable speed.
-"""
+"""Threaded continuous scroller with configurable speed and start delay."""
 
 from __future__ import annotations
 
@@ -16,30 +9,7 @@ import pyautogui
 
 
 class ContinuousScroller:
-    """
-    Continuous scrolling with adjustable speed and delay.
-
-    Example:
-        >>> scroller = ContinuousScroller(speed=-8)  # Scroll down
-        >>> scroller.start()
-        >>> time.sleep(2)
-        >>> scroller.stop()
-    """
-
-    def __init__(
-        self,
-        speed: int = -6,
-        interval: float = 0.02,
-        start_delay: float = 0.5,
-    ) -> None:
-        """
-        Initialize scroller.
-
-        Args:
-            speed: Scroll amount per tick (negative = down, positive = up).
-            interval: Time between scroll ticks in seconds.
-            start_delay: Delay before scrolling starts on subsequent calls.
-        """
+    def __init__(self, speed: int = -6, interval: float = 0.02, start_delay: float = 0.5) -> None:
         self.speed = speed
         self.interval = interval
         self.start_delay = start_delay

@@ -1,11 +1,3 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-HandFlow Utilities
-=================
-
-Common utility functions and classes.
-"""
 
 from handflow.utils.config import Config, load_config, save_config
 from handflow.utils.setting import Setting, load_setting, save_setting

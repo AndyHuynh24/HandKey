@@ -1,12 +1,3 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-HandFlow Data Module
-===================
-
-Data loading, preprocessing, validation, normalization, and augmentation utilities.
-"""
-
 from handflow.data.augmentation import (
     SequenceAugmenter,
 )

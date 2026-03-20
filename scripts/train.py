@@ -1,24 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-Training Script
-===============
-
-Train unified gesture recognition model with experiment tracking.
-Uses flip canonicalization to train one model for both hands.
-
-Usage:
-    python scripts/train.py
-    python scripts/train.py --architecture lstm --epochs 100
-    python scripts/train.py --resume models/hand_action.keras --epochs 50 --lr 0.00001
-    python scripts/train.py --resume models/checkpoints/tcn_best.h5 --lr 0.0001
-
-Pipeline:
-1. Load or preprocess data
-2. Build model architecture (or load existing model for resume)
-3. Create & and execute trainer
-"""
+"""Train unified gesture recognition model. Supports resume from checkpoints."""
 
 from __future__ import annotations
 
@@ -156,7 +137,6 @@ def main() -> None:
     """Main training function."""
     args = parse_args()
 
-    #set up logging
     log_file = "logs/training.log"
     setup_logging(level="INFO", log_file=log_file)
     logger = get_logger("handflow.training")
@@ -198,9 +178,6 @@ def main() -> None:
     logger.info(f"Output: {output_path}")
     logger.info(f"{'='*60}")
 
-    # -------------------------------------------------
-    #1.Load or preprocess data
-    # -------------------------------------------------
     logger.info("\n Loading preprocessed data from cache (both hands)...")
     x_train, x_val, y_train, y_val, actions = load_training_data(config=config)
     logger.info("✅ Data is loaded and merged from both hands")
@@ -212,9 +189,6 @@ def main() -> None:
     # Update input dim to config
     config.model.input_dim = x_train.shape[-1]
 
-    # -------------------------------------------------
-    # 2. Build model (or load existing for resume)
-    # -------------------------------------------------
     if args.resume:
         logger.info(f"\n🔄 Loading model from {args.resume}...")
         model = keras.models.load_model(args.resume)
@@ -236,9 +210,6 @@ def main() -> None:
         model = build_model(config)
         model.summary()
 
-    # -------------------------------------------------
-    #3. Create trainer
-    # -------------------------------------------------
     experiment_name = "handflow-unified"
     trainer = Trainer(
         config=config,

@@ -1,10 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-HandFlow Data Augmentation
-========================
-Short-sequence-safe augmentation for gesture recognition.
-"""
+"""Online geometric augmentation for hand gesture sequences: noise, time warp, rotation, and depth transforms."""
 
 from __future__ import annotations
 import numpy as np
@@ -45,10 +39,6 @@ class SequenceAugmenter:
 
         seq = sequence.copy()
 
-        # if np.random.rand() < self.config.augmentation.noise_prob:
-        #     seq = self._add_noise(seq)
-
-        # Time warp (disabled by default - check time_warp_enabled flag)
         time_warp_enabled = getattr(self.config.augmentation, 'time_warp_enabled', False)
         if (
             time_warp_enabled
@@ -56,9 +46,6 @@ class SequenceAugmenter:
             and len(seq) >= self.config.augmentation.min_timewarp_frames
         ):
             seq = self._time_warp(seq)
-
-        # if np.random.rand() < self.config.augmentation.dropout_prob:
-        #     seq = self._keypoint_dropout(seq)
 
         if np.random.rand() < self.config.augmentation.scale_prob:
             seq = self._scale(seq)

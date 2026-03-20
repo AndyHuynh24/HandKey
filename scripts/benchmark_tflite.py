@@ -1,21 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-End-to-End Pipeline Benchmark
-=============================
-
-Benchmarks the full detection pipeline:
-1. MediaPipe Hand Detection
-2. Feature Engineering
-3. TFLite Gesture Model Inference
-4. ArUco Marker Detection
-5. MacroPad Detection
-
-Usage:
-    python scripts/benchmark_tflite.py
-    python scripts/benchmark_tflite.py --runs 200 --camera 0
-    python scripts/benchmark_tflite.py --use-dummy  # Use dummy frames (no camera)
-"""
+"""Benchmark the full detection pipeline end-to-end."""
 
 import argparse
 import numpy as np

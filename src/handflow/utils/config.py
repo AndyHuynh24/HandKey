@@ -1,4 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
+"""Pydantic configuration models loaded from config/config.yaml."""
 
 from pathlib import Path
 from typing import Any
@@ -12,7 +12,6 @@ class MediaPipeConfig(BaseModel):
     max_num_hands: int = 2
     model_complexity: int = 0  # 0=Lite (Fastest), 1=Full (Default is 1)
 
-#Process data
 class ValidationConfig(BaseModel):
     check_nan: bool = True
     check_inf: bool = True

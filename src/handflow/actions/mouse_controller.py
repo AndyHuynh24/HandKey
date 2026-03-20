@@ -1,12 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-HandFlow Mouse Controller
-========================
-
-Smooth mouse control using hand landmarks.
-Cross-platform support for macOS, Windows, and Linux.
-"""
+"""Smooth relative mouse control from hand landmarks with adaptive speed, deadzones, and depth sensitivity."""
 
 from __future__ import annotations
 
@@ -22,34 +14,11 @@ import pyautogui
 if TYPE_CHECKING:
     from handflow.utils.config import Config
 
-# Disable PyAutoGUI fail-safe (moving to corner stops program)
 pyautogui.FAILSAFE = False
 
 
 class MouseController:
-    """
-    Smooth mouse control using hand landmark positions.
-
-    Features:
-    - Platform-aware mouse movement (macOS Quartz, Windows, Linux)
-    - Adaptive smoothing based on movement speed
-    - Deadzone to prevent jitter
-    - Still-lock to prevent micro-movements
-
-    Example:
-        >>> controller = MouseController(config)
-        >>> controller.start()
-        >>> controller.update_position(x=0.5, y=0.5)  # Center of frame
-        >>> controller.stop()
-    """
-
     def __init__(self, config: Config) -> None:
-        """
-        Initialize mouse controller.
-
-        Args:
-            config: Configuration with mouse settings.
-        """
         self.config = config
         mouse_cfg = config.mouse
 

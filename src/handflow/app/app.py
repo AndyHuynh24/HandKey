@@ -1,17 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-HandFlow App - Main Application Window
-======================================
-
-Modern customtkinter-based UI with tabbed interface for:
-- Gesture to action mapping
-- Paper macro pad configuration
-- ArUco screen calibration
-- General setting
-
-Industry-standard design with clean UX flow.
-"""
+"""Main application window with tabbed interface for gesture mapping, macro pad config, and calibration."""
 
 import customtkinter as ctk
 import tkinter as tk
@@ -20,7 +7,6 @@ from typing import Optional, Callable, Dict, List
 import sys
 import os
 
-# Add src to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
 from handflow.utils import Setting, load_setting, save_setting
@@ -29,7 +15,6 @@ from handflow.detector import ActionBinding, MacroPadButton
 from handflow.actions import ActionExecutor
 
 
-# Configure appearance
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
@@ -1847,11 +1832,6 @@ class settingTab(ctk.CTkFrame):
 
 
 class HandFlowApp(ctk.CTk):
-    """
-    Main HandFlow Application.
-
-    Modern UI with tabbed interface for gesture and macro pad control.
-    """
 
     def __init__(self):
         super().__init__()

@@ -1,11 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-HandFlow Data Validator
-======================
-
-Validate and clean gesture sequence data before feature engineering.
-"""
+"""Validate and clean gesture sequence data before feature engineering."""
 
 from __future__ import annotations
 

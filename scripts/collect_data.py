@@ -1,11 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-HandFlow GUI Data Collector
-====================
-
-Self collecitng data tool - left hand would be flip to match right hand orientation.
-"""
+"""GUI tool for collecting gesture training data. Left hand is flipped to match right hand orientation."""
 
 import sys
 import os
@@ -48,9 +41,6 @@ class GUIDataCollector:
         self.setup_ui() 
         
     def setup_ui(self):
-        # -------------------------------------------------
-        # 1. Settings Frame
-        # -------------------------------------------------
         settings_frame = ttk.LabelFrame(self.root, text="Settings", padding=10)
         settings_frame.pack(fill="x", padx=10, pady=5)
         
@@ -87,9 +77,6 @@ class GUIDataCollector:
         ttk.Label(settings_frame, text="Batch:").grid(row=5, column=0, sticky="w", pady=5)
         ttk.Spinbox(settings_frame, from_=1, to=200, textvariable=self.batch_size_var, width=5).grid(row=5, column=1, sticky="w", padx=5)
 
-        # -------------------------------------------------
-        # 2. Control Frame
-        # -------------------------------------------------
         control_frame = ttk.LabelFrame(self.root, text="Controls", padding=10)
         control_frame.pack(fill="x", padx=10, pady=20)
         

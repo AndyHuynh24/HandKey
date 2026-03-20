@@ -1,11 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-HandFlow Data Loader
-====================
-
-Load raw and processed data for training and inference.
-"""
+"""Load raw and processed gesture data for training and inference."""
 
 from __future__ import annotations
 

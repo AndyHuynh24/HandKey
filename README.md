@@ -1,133 +1,290 @@
-# HandFlow
+<p align="center">
+  <!-- Replace with your logo: assets/logo.png -->
+  <img src="assets/logo.png" alt="HandFlow Logo" width="150" height="150" style="object-fit: contain;" />
+  <h1 align="center">HandFlow</h1>
+  <p align="center">
+    Real-time hand gesture recognition for touchless human-computer interaction
+    <br />
+    <a href="#demo">View Demo</a> &middot; <a href="#getting-started">Get Started</a> &middot; <a href="#architecture">Architecture</a>
+  </p>
+</p>
 
-**Real-Time Hand Gesture Recognition for Touchless Human-Computer Interaction**
-
-> **Note:** This is an early-stage prototype demonstrating core capabilities. The project is under active development with significant features and optimizations planned. Current implementation serves as a proof-of-concept for the underlying technology.
-
-[Demo Video](#demo) | [Features](#features) | [Architecture](#architecture) | [Getting Started](#getting-started)
+<p align="center">
+  <img src="https://img.shields.io/badge/python-3.9%E2%80%933.12-blue?logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/TensorFlow-2.16-orange?logo=tensorflow&logoColor=white" alt="TensorFlow" />
+  <img src="https://img.shields.io/badge/MediaPipe-Hands-green?logo=google&logoColor=white" alt="MediaPipe" />
+  <img src="https://img.shields.io/badge/OpenCV-ArUco-red?logo=opencv&logoColor=white" alt="OpenCV" />
+  <img src="https://img.shields.io/badge/license-All%20Rights%20Reserved-red" alt="License" />
+</p>
 
 ---
 
-## Overview
-
-HandFlow is an end-to-end gesture recognition system that enables touchless interaction with computers through free-space hand gestures. The system combines deep learning-based gesture classification with computer vision-based spatial calibration to support:
-
-- **Free-space gesture control** — Navigate, click, scroll, and trigger shortcuts without touching any device
-- **Virtual touchscreen** — Transform any non-touch display into a touch-enabled surface using ArUco marker calibration
-- **Paper macro pads** — Use printed ArUco markers as physical button interfaces mapped to OS-level controls
+HandFlow is an end-to-end gesture recognition system that turns a standard webcam into a touchless input device. It combines a lightweight temporal convolutional network with computer vision to support **free-space gesture control**, **virtual touchscreens**, and **printable paper macro pads** — all running at **real-time speed on CPU**.
 
 ## Demo
 
-<!-- Replace with your actual demo video link -->
-[![Demo Video](https://img.shields.io/badge/Demo-Watch%20Video-red?style=for-the-badge&logo=youtube)](YOUR_DEMO_LINK_HERE)
+<p align="center">
+  <a href="https://youtu.be/YOUR_VIDEO_ID">
+    <img src="https://img.shields.io/badge/%E2%96%B6%20Watch%20Full%20Demo%20on%20YouTube-Click%20Here%20(Highly%20Recommended!)-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch Full Demo" />
+  </a>
+</p>
 
-*Click above to watch the prototype demonstration*
+<p align="center"><i>*This is a MacBook — not a touchscreen laptop. The paper macro pad is an A4 printed paper, not connected to the laptop in any way. All connection and computation are done via camera tracking.</i></p>
 
----
+<table>
+  <tr>
+    <td align="center">
+      <b>Virtual Touchscreen</b><br/>
+      <!-- TODO: Add demo gif/video showing non-touch display transformed into touchscreen -->
+      <i>Transform any non-touch display into a touchscreen using ArUco marker calibration</i>
+      <img src="public/Demo/touchscreen.gif" width="400" />
+    </td>
+    <td align="center">
+      <b>Free-Space Hand Gestures</b><br/>
+      <i>7 hand gestures for touchless computer control — swipe, click, scroll, zoom, and more</i>
+      <img src="public/Demo/7handgestures.gif" width="400" />
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <b>12-Button Touch Macro Pad</b><br/>
+      <!-- TODO: Add demo gif/video showing the on-screen touchscreen macropad -->
+      <i>On-screen macro pad with 12 customizable buttons, activated by touch gestures</i>
+      <img src="public/Demo/12touchmacropad.gif" width="400" />
+    </td>
+    <td align="center">
+      <b>24-Button Paper Macro Pad</b><br/>
+      <!-- TODO: Add demo gif/video showing the printed paper macropad in action -->
+      <i>Print a foldable A4 sheet with ArUco markers — 2 sets of 12 buttons each</i>
+      <img src="public/Demo/24buttonmacropad.gif" width="400" />
+    </td>
+  </tr>
+</table>
 
-## Features
+## Key Features
 
-### Gesture Recognition
-- **11 gesture classes** including swipes, clicks, touch, and navigation gestures
-- **Per-hand detection** — Independent left/right hand tracking with gesture-specific actions
-- **Customizable mappings** — Map any gesture to keyboard shortcuts, mouse actions, or application launches
+**Virtual Touchscreen** — ArUco marker-based homography transforms any non-touch display into a touch surface. Handles partial occlusion with 3-corner recovery and sub-pixel calibration offsets.
 
-### Spatial Calibration
-- **ArUco-based homography** — 4-corner marker system for precise screen coordinate mapping
-- **Missing marker recovery** — Estimates occluded corners using remaining visible markers
-- **Sub-pixel accuracy** — Per-corner offset calibration for precise touch mapping
+**Free-Space Gesture Control** — 7 hand gestures with independent left/right hand tracking, customizable action mappings (keyboard shortcuts, mouse actions, app launches), and configurable multi-action sequences per gesture.
 
-### Real-Time Performance
-- **~25 FPS** on standard consumer hardware (CPU-only inference)
-- **TFLite quantization** for optimized model size (~0.6 MB) and inference speed
-- **Smoothing filters** (OneEuro) for stable cursor tracking and reduced jitter
+**Screen Macro Pad** — 12-button on-screen macro pad overlay with ArUco markers for camera-based detection. Each button maps to custom keyboard shortcuts, app launches, or action sequences.
 
----
+**Paper Macro Pad** — Print a foldable A4 sheet with ArUco markers to create a physical 24-button macro pad (2 swappable sets of 12). Per-button action bindings configured through the GUI.
+
+**Real-Time Performance** — ~25 FPS on CPU with a 907 KB TFLite model. OneEuro filtering for smooth cursor tracking. FPS-invariant velocity features for consistent behavior across hardware.
 
 ## Architecture
 
-### System Pipeline
-
 ```
-┌─────────────┐    ┌──────────────┐    ┌─────────────┐    ┌──────────────┐
-│   Camera    │───▶│  MediaPipe   │───▶│   Feature   │───▶│   Temporal   │
-│   Input     │    │  Hand Track  │    │  Engineer   │    │     CNN      │
-└─────────────┘    └──────────────┘    └─────────────┘    └──────────────┘
-                                              │                   │
-                                              ▼                   ▼
-┌─────────────┐    ┌──────────────┐    ┌─────────────┐    ┌──────────────┐
-│   OS-Level  │◀───│    Action    │◀───│  Smoothing  │◀───│   Gesture    │
-│   Control   │    │   Executor   │    │  & Voting   │    │ Prediction   │
-└─────────────┘    └──────────────┘    └─────────────┘    └──────────────┘
+Camera ──> MediaPipe Hands ──> Feature Engineer (96 features) ──> TCN Model ──> Action Executor
+  │              │                                                                     │
+  │              v                                                                     v
+  └──────> ArUco Detection ──> Screen Mapping / MacroPad Grid ──────────────────> OS Control
 ```
 
-### Model Architecture
+### Pipeline
 
-**Temporal Convolutional Network (TCN)** with velocity-gated attention:
+1. **MediaPipe Hands** extracts 21 3D hand landmarks per frame (63 raw coordinates) at up to 2 hands simultaneously, configured with detection confidence 0.5 and tracking confidence 0.3
+2. **Feature Engineer** transforms the raw 84-dimensional keypoints (21 landmarks x 4 values: x, y, z, visibility) into a 96-dimensional feature vector per frame — including wrist-normalized positions (63), inter-finger distances (5), absolute positions for screen mapping (9), FPS-normalized velocities (9), PIP joint bending angles (5), pinch dynamics (3), and thumb posture (2)
+3. **TCN Model** takes a sliding window of 12 consecutive feature frames (~600 ms at 20 FPS) and classifies into one of 11 gesture classes
+4. **Action Executor** dispatches the predicted gesture to OS-level actions (keyboard shortcuts, mouse control, app launches) with per-hand and per-gesture configurable action chains (up to 10 actions per gesture)
 
-- **Input:** 12-frame sequences × 88 engineered features
-- **Velocity Gating:** Custom `SoftMotionWeighting` layer that dynamically weights features based on motion magnitude, suppressing noise during idle periods
-- **Temporal Processing:** Dilated causal convolutions (dilation rates: 1, 2, 4) with residual connections
-- **Aggregation:** Combined average + max pooling for temporal summarization
-- **Output:** 11-class softmax classification
+### Model — Temporal Convolutional Network (TCN)
 
-**Alternative architectures available:** LSTM, GRU, 1D-CNN, Transformer
+The primary architecture is a **TCN with residual dilated causal convolutions**, designed for low-latency temporal pattern recognition on CPU.
 
-### Feature Engineering (88 features)
+```
+┌─────────────────────────────────────────────────┐
+│                 Input (12, 96)                   │
+│          12-frame window × 96 features          │
+└────────────────────┬────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────┐
+│            1×1 Conv Projection                  │
+│              96 → 128 channels                  │
+└────────────────────┬────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────┐
+│         Residual Block (dilation=1)             │
+│  ┌────────────────────────────────────────────┐ │
+│  │ Conv1D(128, k=3, d=1) → BatchNorm → ReLU  │ │
+│  │ Conv1D(128, k=1)      → BatchNorm → Drop  │ │
+│  └──────────────────┬─────────────────────────┘ │
+│           + residual connection → ReLU          │
+└────────────────────┬────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────┐
+│         Residual Block (dilation=2)             │
+│         (same structure, RF = 5 frames)         │
+│           + residual connection → ReLU          │
+└────────────────────┬────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────┐
+│         Residual Block (dilation=4)             │
+│    (same structure, RF = 13 — full window)      │
+│           + residual connection → ReLU          │
+└─────────┬──────────────────────────┬────────────┘
+          │                          │
+          ▼                          ▼
+┌──────────────────┐   ┌──────────────────────┐
+│  Global AvgPool  │   │   Global MaxPool     │
+└────────┬─────────┘   └──────────┬───────────┘
+         │                        │
+         └───────────┬────────────┘
+                     ▼
+┌─────────────────────────────────────────────────┐
+│            Concatenate (256-dim)                 │
+└────────────────────┬────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────┐
+│       Dense(64, ReLU) → Dropout(0.1)            │
+└────────────────────┬────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────┐
+│          Dense(11, Softmax) → Output            │
+│              11 gesture classes                 │
+└─────────────────────────────────────────────────┘
+```
 
-| Feature Type | Dimensions | Description |
-|-------------|------------|-------------|
-| Relative Positions | 63 | Wrist-normalized (x, y, z) for 21 landmarks |
-| Inter-finger Distances | 5 | Thumb to each fingertip + index PIP |
-| Raw Positions | 9 | Absolute coords for thumb tip, index MCP/tip |
-| Velocity Features | 6 | Frame-to-frame motion of index finger |
-| Finger Angles | 5 | Bending angle at PIP joint per finger |
+| Spec | Details |
+|------|---------|
+| Input shape | `(12, 96)` — 12-frame window x 96 features |
+| 1x1 projection | Projects 96 input features to 128 channels |
+| Temporal blocks | 3 residual blocks with dilations `[1, 2, 4]` and kernel size 3 |
+| Residual block | Dilated Conv1D &rarr; BatchNorm &rarr; ReLU &rarr; 1x1 Conv1D &rarr; BatchNorm &rarr; Dropout &rarr; residual add &rarr; ReLU |
+| Receptive field | 13 frames (covers the entire 12-frame input window) |
+| Pooling | Concatenated global average + global max pooling (256-dim) |
+| Classifier head | Dense(64, ReLU) &rarr; Dropout(0.1) &rarr; Dense(11, softmax) |
+| Model size | 2.7 MB (Keras) &rarr; 907 KB (TFLite, 66% reduction via quantization) |
+| Inference | ~25 FPS end-to-end on CPU (including MediaPipe + feature extraction + ArUco) |
+
+**Custom layer — `SoftMotionWeighting`:** A velocity gate that computes frame-to-frame motion magnitude, passes it through a sigmoid, and element-wise multiplies the input. This suppresses noisy features when the hand is idle and amplifies signal during active movement.
+
+**Alternative architectures** (all swappable via config): LSTM (2-layer, 128/64 units), GRU (2-layer, 128/64 units), 1D-CNN (3-layer with BatchNorm + MaxPooling), Transformer (2 blocks, 4-head attention with learned positional encoding).
+
+### Training
+
+| Spec | Details |
+|------|---------|
+| Optimizer | Adam (lr=0.0001) |
+| Loss | Categorical cross-entropy |
+| Batch size | 4 |
+| LR scheduler | ReduceLROnPlateau (factor=0.5, patience=8, min_lr=1e-7) |
+| Early stopping | Patience=25 epochs |
+| Validation split | 15% |
+| Augmentation | 6 variants per sample (online geometric augmentation) |
+| Experiment tracking | Weights & Biases + TensorBoard |
 
 ### Data Augmentation
 
-Online geometric augmentation during training:
-- Gaussian noise injection
-- Time warping
-- Landmark dropout
-- Uniform scaling & 2D rotation
-- Z-axis transformations (scale, shift, proportional stretch)
+Online geometric augmentation applied during training to improve generalization across hand sizes, camera angles, and depth variations:
 
----
+| Augmentation | Probability | Details |
+|--------------|-------------|---------|
+| Gaussian noise | 40% | Motion-adaptive (reduced when hand is static), capped per-frame jitter |
+| Uniform scaling | 20% | Scale range [0.9, 1.1] — simulates hand distance variation |
+| 2D rotation | 15% | [-8, 8] degrees — simulates wrist rotation |
+| Z-axis scaling | 30% | [0.85, 1.15] — simulates depth sensor variation |
+| Z-axis shift | 30% | [-0.08, 0.08] — simulates camera depth offset |
+| Z proportional | 25% | [0.85, 1.15] — scales fingertip-to-wrist depth |
+| Z finger length | 25% | [0.9, 1.1] — simulates hand size variation per finger |
+| Z noise | 40% | Depth-specific Gaussian noise (std=0.004) |
+| Hand tilt | 20% | [-12, 12] degrees — rotates around Y-Z plane (wrist-relative) |
+| Landmark dropout | 15% | Drops whole landmarks or fingertips to simulate occlusion |
 
-## Tech Stack
+### Feature Engineering (96 dimensions)
 
-| Component | Technology |
-|-----------|------------|
-| ML Framework | TensorFlow/Keras + TFLite |
-| Hand Tracking | MediaPipe Hands |
-| Computer Vision | OpenCV + ArUco |
-| Experiment Tracking | Weights & Biases |
-| GUI | Tkinter |
-| Testing | pytest |
+| Feature Group | Dims | Description |
+|---------------|------|-------------|
+| Relative positions | 63 | Wrist-normalized x, y, z for 21 landmarks (translation invariance) |
+| Inter-finger distances | 5 | Thumb-to-each-fingertip + thumb-to-index-PIP Euclidean distances |
+| Absolute positions | 9 | Raw x, y, z of thumb tip, index MCP, index tip (for screen mapping) |
+| Velocities | 9 | Frame-to-frame motion vectors for index MCP, index tip, thumb tip |
+| Finger angles | 5 | PIP joint bending angle per finger in radians (via 3-point arccos) |
+| Pinch dynamics | 3 | Thumb-index aperture velocity, aperture acceleration, z-depth difference |
+| Thumb posture | 2 | Thumb abduction angle (thumb vs palm vector) + thumb-to-wrist distance |
 
----
+All velocities are FPS-normalized to a 20 FPS reference using `delta_time` scaling, ensuring consistent gesture recognition across different hardware frame rates.
+
+## Supported Gestures
+
+| Gesture | Description |
+|---------|-------------|
+| `none` | Idle / baseline |
+| `horizontal_swipe` | Lateral hand movement |
+| `swipeup` | Upward vertical motion |
+| `thumb_index_swipe` | Thumb-index directional swipe |
+| `thumb_middle_swipe` | Thumb-middle directional swipe |
+| `5_fingers_close` | All fingers pinch together |
+| `pointyclick` | Index finger point and click |
+| `middleclick` | Middle finger click |
+| `touch_hover` | Finger hovering (cursor movement) |
+| `touch_hold` | Sustained contact (drag) |
+| `touch` | Brief contact (click) |
+
+Each gesture supports per-hand action mapping with up to 10 chained actions.
 
 ## Project Structure
 
 ```
 HandFlow/
-├── config/                 # YAML configuration files
-│   ├── config.yaml        # Model & training settings
-│   └── handflow_setting.yaml  # User preferences & gesture mappings
-├── src/handflow/          # Main package
-│   ├── app/               # GUI application
-│   ├── data/              # Data loading & augmentation
-│   ├── features/          # Feature engineering
-│   ├── models/            # Neural network architectures
-│   ├── detector/          # Gesture & ArUco detection
-│   └── actions/           # Mouse/keyboard control
-├── scripts/               # Training & preprocessing scripts
-├── models/                # Trained model artifacts
-├── Experiment_notebooks/  # Jupyter notebooks for exploration
-└── tests/                 # Unit tests
+├── src/handflow/
+│   ├── app/
+│   │   ├── app.py                     # Main GUI window (tabbed interface)
+│   │   ├── detection_window.py        # Real-time camera preview and detection loop
+│   │   ├── gesture_feedback.py        # Floating gesture activation overlay
+│   │   ├── screen_overlay_macropad.py # On-screen 12-button macro pad with ArUco markers
+│   │   └── paper_macropad_feedback.py # Hover/click feedback overlay for paper macro pad
+│   ├── detector/
+│   │   ├── gesture_detector.py        # Gesture inference and action dispatch
+│   │   ├── screen_detector.py         # ArUco-based screen boundary detection
+│   │   ├── macropad_detector.py       # Paper macro pad marker detection
+│   │   ├── macropad_manager.py        # Multi-set macro pad state management
+│   │   └── handedness_tracker.py      # Left/right hand assignment
+│   ├── features/
+│   │   └── feature_engineer.py        # 96-feature extraction (positions, velocities, angles)
+│   ├── models/
+│   │   ├── architectures.py           # TCN, LSTM, GRU, CNN1D, Transformer builders
+│   │   ├── trainer.py                 # Training loop with callbacks and tracking
+│   │   └── calibration.py             # ArUco homography calibration
+│   ├── actions/
+│   │   ├── action_executor.py         # Gesture-to-OS-action dispatcher
+│   │   ├── mouse_controller.py        # Cursor movement, clicks, and drag
+│   │   └── scroller.py                # Scroll automation
+│   ├── data/
+│   │   ├── loader.py                  # Raw and processed data loading
+│   │   ├── validator.py               # Sequence validation (NaN, outliers, length)
+│   │   └── augmentation.py            # Online geometric augmentation
+│   ├── evaluation/
+│   │   ├── evaluator.py               # Accuracy, loss, and misclassification analysis
+│   │   └── visualizer.py              # Confusion matrices, feature plots
+│   ├── utils/
+│   │   ├── config.py                  # YAML config loading with Pydantic validation
+│   │   ├── setting.py                 # User preferences and gesture mappings
+│   │   ├── logging.py                 # Structured logging setup
+│   │   ├── smoothing.py               # OneEuro filter for cursor tracking
+│   │   ├── experiment_tracker.py      # Weights & Biases + TensorBoard integration
+│   │   └── macropad_pdf_generator.py  # Printable A4 macro pad PDF generation
+│   └── cli.py                         # Command-line interface entry point
+├── scripts/
+│   ├── train.py                       # Model training (supports resume from checkpoints)
+│   ├── export.py                      # Keras to TFLite conversion
+│   ├── collect_data.py                # GUI-based gesture data collection
+│   ├── dataset.py                     # Data preprocessing and validation
+│   ├── process_video.py               # Offline video processing with visualization
+│   ├── benchmark_inference.py         # Architecture speed comparison
+│   └── benchmark_tflite.py            # End-to-end pipeline benchmarking
+├── config/                            # YAML configs (model, training, user settings)
+├── models/                            # Trained model artifacts (.keras, .tflite)
+├── tests/                             # Unit and integration tests
+└── main.py                            # Application entry point
 ```
-
----
 
 ## Getting Started
 
@@ -135,112 +292,80 @@ HandFlow/
 
 - Python 3.9+
 - Webcam
-- (Optional) Printed ArUco markers for spatial calibration
+- macOS, Linux, or Windows
+- (Optional) Printed ArUco markers for screen calibration / macro pad
 
 ### Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/HandFlow.git
+git clone https://github.com/AndyHuynh24/HandFlow.git
 cd HandFlow
 
-# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
-# Install dependencies
 pip install -e .
 ```
 
-### Quick Start
+### Usage
 
 ```bash
-# Run the application
+# Launch the GUI application
+python main.py
+
+# Or via CLI
 python -m handflow
-
-# Or run with GUI
-python -m handflow --gui
 ```
 
-### Training Custom Models
+### Training
 
 ```bash
-# Train with default configuration
-python scripts/train.py
+# Collect gesture data
+python scripts/collect_data.py
 
-# Train with custom config
-python scripts/train.py --config config/config.yaml
+# Preprocess collected data
+python scripts/dataset.py
+
+# Train a model
+python scripts/train.py --architecture tcn --epochs 100
+
+# Resume from checkpoint with adjusted learning rate
+python scripts/train.py --resume models/hand_action.keras --lr 0.00001 --epochs 50
+
+# Export to TFLite
+python scripts/export.py --input models/hand_action.keras
 ```
 
-### Benchmarking Model Inference
-
-Compare inference times across different architectures:
+### Benchmarking
 
 ```bash
-# Basic benchmark (all architectures)
-python scripts/benchmark_inference.py
+# Compare all architectures
+python scripts/benchmark_inference.py --iterations 500 --include-tflite
 
-# More iterations for accurate results
-python scripts/benchmark_inference.py --iterations 500 --warmup 50
-
-# Include TFLite comparison
-python scripts/benchmark_inference.py --include-tflite
-
-# Benchmark specific architectures only
-python scripts/benchmark_inference.py --architectures lstm tcn transformer
-
-# Different batch size
-python scripts/benchmark_inference.py --batch-size 8
+# Full pipeline benchmark (MediaPipe + features + model + ArUco)
+python scripts/benchmark_tflite.py --runs 200
 ```
 
-Output includes mean/std/min/p95 inference times (ms) and parameter counts for each model.
+## Tech Stack
 
----
-
-## Supported Gestures
-
-| Gesture | Default Action | Description |
-|---------|---------------|-------------|
-| `none` | — | Baseline (no gesture) |
-| `horizontal_swipe` | Navigate | Left/right swipe motion |
-| `swipeup` / `swipedown` | Scroll | Vertical swipe gestures |
-| `thumb_left` / `thumb_right` | Back/Forward | Directional thumb gestures |
-| `pointyclick` | Left Click | Index finger point + click |
-| `middleclick` | Middle Click | Middle finger click |
-| `touch` | Click | Tap gesture on virtual surface |
-| `touch_hover` | Cursor Move | Move cursor without clicking |
-| `touch_hold` | Drag | Hold for drag operations |
-
----
-
-## Roadmap
-
-This prototype demonstrates the foundational capabilities. Planned enhancements include:
-
-- [ ] Multi-hand gesture combinations
-- [ ] Expanded gesture vocabulary (20+ gestures)
-- [ ] 3D spatial gestures with depth sensing
-- [ ] Mobile deployment (Android/iOS)
-- [ ] Plugin system for application-specific controls
-- [ ] Improved low-light and varying background robustness
-- [ ] Extended macro pad support (24+ button layouts)
-
----
-
-## Acknowledgments
-
-- [MediaPipe](https://mediapipe.dev/) for hand landmark detection
-- [OpenCV](https://opencv.org/) for computer vision utilities
-- [Weights & Biases](https://wandb.ai/) for experiment tracking
-
----
+| Component | Technology |
+|-----------|------------|
+| ML Framework | TensorFlow 2.16 / Keras + TFLite |
+| Hand Tracking | MediaPipe Hands (21-landmark model) |
+| Computer Vision | OpenCV (ArUco marker detection) |
+| GUI | CustomTkinter |
+| Experiment Tracking | Weights & Biases + TensorBoard |
+| Config | Pydantic + YAML |
+| Testing | pytest |
 
 ## License
 
-This project is for educational and demonstration purposes.
+Copyright (c) 2025 Andy Huynh. All rights reserved.
 
----
+This project is proprietary. No part of this codebase may be reproduced, distributed, or used without explicit written permission from the author.
 
-<p align="center">
-  <i>Built with passion for touchless interaction</i>
-</p>
+## Acknowledgments
+
+- [MediaPipe](https://mediapipe.dev/) — hand landmark detection
+- [OpenCV](https://opencv.org/) — ArUco markers and image processing
+- [Weights & Biases](https://wandb.ai/) — experiment tracking

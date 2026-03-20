@@ -1,12 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-HandFlow Model Architectures
-============================
-
-Neural network architectures for gesture classification.
-Supports TCN, LSTM, GRU, 1D-CNN, and Transformer models.
-"""
+"""Gesture classification architectures: TCN (primary), LSTM, GRU, 1D-CNN, and Transformer."""
 
 from __future__ import annotations
 
@@ -19,32 +11,7 @@ from tensorflow.keras import layers
 if TYPE_CHECKING:
     from handflow.utils.config import Config
 
-@tf.keras.utils.register_keras_serializable(package="HandFlow")
-class SoftMotionWeighting(layers.Layer):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-    def call(self, x):
-        # x: (B, T, C)
-        velocity = tf.norm(x[:, 1:] - x[:, :-1], axis=-1, keepdims=True)
-        velocity = tf.pad(velocity, [[0, 0], [1, 0], [0, 0]])
-        weights = tf.sigmoid(velocity * 5.0)
-        return x * weights
-
-    def get_config(self):
-        return super().get_config()
-
-
 def build_model(config: Config) -> keras.Model:
-    """
-    Build a model based on configuration.
-
-    Args:
-        config: Configuration with model settings.
-
-    Returns:
-        Compiled Keras model.
-    """
     architecture = config.model.architecture.lower()
 
     builders = {
@@ -74,15 +41,6 @@ def build_model(config: Config) -> keras.Model:
 
 
 def build_lstm_model(config: Config) -> keras.Model:
-    """
-    Build LSTM-based gesture classifier.
-
-    Args:
-        config: Configuration object.
-
-    Returns:
-        Keras Sequential model.
-    """
     input_dim = config.model.input_dim
     seq_len = config.data.sequence_length
     hidden_units = config.model.hidden_units
@@ -103,25 +61,11 @@ def build_lstm_model(config: Config) -> keras.Model:
             layers.Dropout(dropout / 2),
             layers.Dense(num_classes, activation="softmax"),
         ],
-        # name="lstm_gesture_classifier",
     )
-
-    
-    
-
     return model
 
 
 def build_gru_model(config: Config) -> keras.Model:
-    """
-    Build GRU-based gesture classifier.
-
-    Args:
-        config: Configuration object.
-
-    Returns:
-        Keras Sequential model.
-    """
     input_dim = config.model.input_dim
     seq_len = config.data.sequence_length
     hidden_units = config.model.hidden_units
@@ -149,15 +93,6 @@ def build_gru_model(config: Config) -> keras.Model:
 
 
 def build_cnn1d_model(config: Config) -> keras.Model:
-    """
-    Build 1D CNN gesture classifier.
-
-    Args:
-        config: Configuration object.
-
-    Returns:
-        Keras Sequential model.
-    """
     input_dim = config.model.input_dim
     seq_len = config.data.sequence_length
     dropout = config.model.dropout
@@ -191,15 +126,6 @@ def build_cnn1d_model(config: Config) -> keras.Model:
 
 
 def build_transformer_model(config: Config) -> keras.Model:
-    """
-    Build Transformer-based gesture classifier.
-
-    Args:
-        config: Configuration object.
-
-    Returns:
-        Keras Functional model.
-    """
     input_dim = config.model.input_dim
     seq_len = config.data.sequence_length
     dropout = config.model.dropout
@@ -249,21 +175,7 @@ def build_transformer_model(config: Config) -> keras.Model:
 
 
 def build_tcn_model(config: Config) -> keras.Model:
-    """
-    Build TCN-based gesture classifier with residual connections.
-
-    Architecture:
-    - Input projection to match filter dimension
-    - Stacked dilated causal convolution blocks with residuals
-    - Each block: Conv1D -> BatchNorm -> ReLU -> Conv1D -> Add residual
-    - Global pooling + classification head
-
-    Residual connections help by:
-    1. Enabling gradient flow through skip connections (no vanishing gradients)
-    2. Allowing layers to learn "refinements" instead of full transformations
-    3. Making deeper networks trainable
-    4. Improving convergence speed
-    """
+    """TCN with dilated causal convolutions, residual connections, and combined avg+max pooling."""
     input_dim = config.model.input_dim
     seq_len = config.data.sequence_length
     dropout = config.model.dropout
@@ -271,20 +183,14 @@ def build_tcn_model(config: Config) -> keras.Model:
     filters = 128
 
     inputs = layers.Input(shape=(seq_len, input_dim))
-
-    # Project input to filter dimension for residual connections
     x = layers.Conv1D(filters, kernel_size=1, padding="same")(inputs)
 
-    # TCN blocks with residual connections
     for dilation in [1, 2, 4]:
         x = _tcn_residual_block(x, filters, kernel_size=3, dilation=dilation, dropout=dropout)
 
-    # Temporal aggregation: combine avg and max pooling for richer representation
     avg_pool = layers.GlobalAveragePooling1D()(x)
     max_pool = layers.GlobalMaxPooling1D()(x)
     x = layers.Concatenate()([avg_pool, max_pool])
-
-    # Classification head
     x = layers.Dense(64, activation="relu")(x)
     x = layers.Dropout(dropout)(x)
     outputs = layers.Dense(num_classes, activation="softmax")(x)
@@ -293,40 +199,10 @@ def build_tcn_model(config: Config) -> keras.Model:
     return model
 
 
-def _tcn_residual_block(
-    x: tf.Tensor,
-    filters: int,
-    kernel_size: int,
-    dilation: int,
-    dropout: float,
-) -> tf.Tensor:
-    """
-    Single TCN residual block.
-
-    Structure:
-        x ─────────────────────────────┐
-        │                              │ (residual/skip connection)
-        ├─► Conv1D ─► BN ─► ReLU       │
-        │                              │
-        ├─► Conv1D ─► BN               │
-        │                              │
-        └─► Dropout ─► Add ◄───────────┘
-                        │
-                        └─► ReLU ─► output
-
-    Args:
-        x: Input tensor (B, T, C)
-        filters: Number of conv filters
-        kernel_size: Convolution kernel size
-        dilation: Dilation rate for temporal context
-        dropout: Dropout rate
-
-    Returns:
-        Output tensor with same shape as input
-    """
+def _tcn_residual_block(x, filters, kernel_size, dilation, dropout):
+    """Dilated conv -> BN -> ReLU -> pointwise conv -> BN -> dropout -> residual add -> ReLU."""
     residual = x
 
-    # First conv: dilated convolution for temporal context
     x = layers.Conv1D(
         filters,
         kernel_size=kernel_size,
@@ -335,33 +211,17 @@ def _tcn_residual_block(
     )(x)
     x = layers.BatchNormalization()(x)
     x = layers.ReLU()(x)
-
-    # Second conv: pointwise (1x1) to mix channels
     x = layers.Conv1D(filters, kernel_size=1, padding="same")(x)
     x = layers.BatchNormalization()(x)
 
-    # Dropout before residual add (regularization)
     x = layers.Dropout(dropout)(x)
-
-    # Residual connection: add input to output
-    # This allows gradients to flow directly through the skip connection
     x = layers.Add()([x, residual])
     x = layers.ReLU()(x)
 
     return x
 
 
-
 def get_model_summary(config: Config) -> str:
-    """
-    Get a string summary of the model architecture.
-
-    Args:
-        config: Configuration object.
-
-    Returns:
-        Model summary string.
-    """
     model = build_model(config)
     string_list = []
     model.summary(print_fn=lambda x: string_list.append(x))
@@ -369,15 +229,6 @@ def get_model_summary(config: Config) -> str:
 
 
 def count_parameters(model: keras.Model) -> dict[str, int]:
-    """
-    Count trainable and non-trainable parameters.
-
-    Args:
-        model: Keras model.
-
-    Returns:
-        Dictionary with parameter counts.
-    """
     trainable = sum(
         tf.keras.backend.count_params(w) for w in model.trainable_weights
     )

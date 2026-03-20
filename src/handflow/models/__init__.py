@@ -1,12 +1,3 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-handflow Models Module
-=====================
-
-Model architectures, training, inference, and user calibration.
-"""
-
 from handflow.models.architectures import (
     build_cnn1d_model,
     build_gru_model,

@@ -1,24 +1,5 @@
 #!/usr/bin/env python3
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-Video Processor - Full HandFlow Detection Pipeline
-===================================================
-
-Processes raw video with the complete HandFlow detection pipeline:
-- MediaPipe hand landmarks with handedness tracking
-- Gesture recognition model (TCN/LSTM)
-- ArUco screen detection
-- MacroPad detection
-
-Outputs a polished, elegant visualization suitable for demos.
-
-Usage:
-    python scripts/process_video.py input.mp4
-    python scripts/process_video.py input.mp4 -o output.mp4
-    python scripts/process_video.py input.mp4 --minimal
-    python scripts/process_video.py recordings/raw_20260204_120000.mp4
-"""
+"""Process video through the full HandFlow detection pipeline with visualization."""
 import argparse
 import cv2
 import numpy as np
@@ -39,10 +20,6 @@ from handflow.features import FeatureEngineer
 from handflow.detector.handedness_tracker import HandTracker
 from handflow.detector import ArUcoScreenDetector, MacroPadDetector
 
-
-# ============================================================
-# Elegant Drawing Utilities
-# ============================================================
 
 class Colors:
     """Color palette for elegant visualization."""
@@ -163,10 +140,6 @@ def draw_touch_effect(
     cv2.circle(frame, (x, y), int(5 * intensity), (255, 255, 255), -1, cv2.LINE_AA)
 
 
-# ============================================================
-# ArUco Screen Visualization
-# ============================================================
-
 def draw_elegant_aruco_screen(
     frame: np.ndarray,
     detector: ArUcoScreenDetector,
@@ -227,10 +200,6 @@ def draw_elegant_aruco_screen(
                 cv2.line(frame, (fx - 8, fy), (fx + 8, fy), (0, 255, 100), 1, cv2.LINE_AA)
                 cv2.line(frame, (fx, fy - 8), (fx, fy + 8), (0, 255, 100), 1, cv2.LINE_AA)
 
-
-# ============================================================
-# MacroPad Visualization
-# ============================================================
 
 def draw_elegant_macropad(
     frame: np.ndarray,
@@ -295,10 +264,6 @@ def draw_elegant_macropad(
     cv2.putText(frame, label_text, (label_pos[0], label_pos[1]),
                cv2.FONT_HERSHEY_SIMPLEX, font_scale, (0, 255, 255), label_thickness, cv2.LINE_AA)
 
-
-# ============================================================
-# Hand Visualization
-# ============================================================
 
 # MediaPipe hand connections
 HAND_CONNECTIONS = [
@@ -479,10 +444,6 @@ def draw_gesture_label_top_center(
                cv2.FONT_HERSHEY_SIMPLEX, font_scale, color, thickness, cv2.LINE_AA)
 
 
-# ============================================================
-# Info Panel
-# ============================================================
-
 def draw_info_panel(
     frame: np.ndarray,
     fps: float,
@@ -551,10 +512,6 @@ def draw_info_panel(
             )
             y_offset += 15
 
-
-# ============================================================
-# Main Video Processor
-# ============================================================
 
 class VideoProcessor:
     """Full HandFlow video processor with elegant visualization."""

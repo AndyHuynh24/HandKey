@@ -1,24 +1,5 @@
 #!/usr/bin/env python
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""
-Data Preprocessing Script
-=========================
-
-Preprocess raw keypoint data and save to NPZ format.
-Validates and applies feature engineering.
-
-Usage:
-    python scripts/dataset.py 
-    python scripts/dataset.py --config config/experiment.yaml
-
-Pipeline:
-1. Load raw .npy files from data/raw/MP_Data/
-2. Validate: Check for NaN, low confidence, outliers
-3. Feature orientation: Add velocity, pinch distances, angles
-4. Split into train/validation sets
-5. Save to data/processed/*.npz
-"""
+"""Preprocess raw keypoint data into NPZ format with validation and feature engineering."""
 
 from __future__ import annotations
 
@@ -165,43 +146,25 @@ def preprocess_hand(
         logger.info(f"⚠️ Data path not found, skipping: {data_path}")
         return
 
-    # -------------------------------------------------
-    #1. Load raw data
-    # -------------------------------------------------
-    logger.info(f"{'='* 60}")
     logger.info("\n1. Loading raw data...")
     sequences, labels, paths = load_raw_data(
         data_path, actions, config.data.sequence_length, return_paths=True
     )
     logger.info(f"   Loaded {len(sequences)} sequences")
-    logger.info(f"   Raw keypoints shape: {sequences.shape} (21 landmarks × 4 = 84 raw features)")
-    logger.info(f"{'='* 60}")
+    logger.info(f"   Raw keypoints shape: {sequences.shape} (21 landmarks x 4 = 84 raw features)")
 
-
-    # -------------------------------------------------
-    # 2. Validate data
-    # -------------------------------------------------
     logger.info("\n2. Validating data...")
     sequences, labels, paths = validate_sequences(
         sequences, labels, config, paths=paths
     )
-    logger.info(f"{'='* 60}")
-
-    # -------------------------------------------------
-    # 3. Feature engineering (no normalization - data is pre-normalized)
-    # -------------------------------------------------
     logger.info("\n3. Applying feature engineering...")
     feature_engineer = FeatureEngineer()
     logger.info(f"   FeatureEngineer output_dim: {feature_engineer.get_output_dim()}")
     X = apply_feature_engineering(sequences, feature_engineer)
     y = labels
     logger.info(f"   Engineered features shape: {X.shape}")
-    logger.info(f"   ✅ Input dimension for model: {X.shape[-1]}")
-    logger.info(f"{'='* 60}")
+    logger.info(f"   Input dimension for model: {X.shape[-1]}")
 
-    # -------------------------------------------------
-    # 4. Split data
-    # -------------------------------------------------
     logger.info(f"\n4. Splitting data (val={validation_split:.0%})...")
     X_train, X_val, y_train, y_val, paths_train, paths_val = train_test_split(
         X, y, paths,
@@ -211,15 +174,10 @@ def preprocess_hand(
     )
     logger.info(f"   Training: {len(X_train)} samples")
     logger.info(f"   Validation: {len(X_val)} samples")
-    logger.info(f"{'='*60}")
 
-    # Get config hash for cache invalidation
     config_hash = get_config_hash(config)
 
-    # -------------------------------------------------
-    # 5. Save processed data
-    # -------------------------------------------------
-    logger.info("\nStep 5: Saving processed data...")
+    logger.info("\n5. Saving processed data...")
     
     train_path = output_dir / f"{hand}_train.npz"
     save_processed_data(train_path, X_train, y_train, actions, config_hash, paths=paths_train)
@@ -233,7 +191,6 @@ def main() -> None:
     """Main preprocessing function."""
     args = parse_args()
 
-    #set up logging
     log_file = "logs/dataset.log"
     setup_logging(level="INFO", log_file=log_file)
 

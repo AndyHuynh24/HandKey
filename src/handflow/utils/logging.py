@@ -1,6 +1,4 @@
-# Copyright (c) 2026 Huynh Huy. All rights reserved.
-
-"""Simple structured logging for OnePen ML pipeline."""
+"""Structured logging with console and optional file output."""
 
 import logging
 import sys
