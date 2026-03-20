@@ -123,7 +123,7 @@ tracking:
 
   # Weights & Biases (wandb) - Cloud-based experiment tracking
   wandb:
-    enabled: true                    # Set to true to enable W&B
+    enabled: false                    # Set to true to enable W&B
     project: "handflow-gestures"      # W&B project name
     entity: "handflow"                   # W&B username/team (optional)
     log_model: true                   # Upload model artifacts to W&B
