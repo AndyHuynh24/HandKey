@@ -1,0 +1,48 @@
+2026-03-20 20:16:51 | INFO     | handflow.training | ============================================================
+2026-03-20 20:16:51 | INFO     | handflow.training | 🖐️ HandFlow Training - Unified Model (Both Hands)
+2026-03-20 20:16:51 | INFO     | handflow.training | ============================================================
+2026-03-20 20:16:51 | INFO     | handflow.training | Architecture: TCN
+2026-03-20 20:16:51 | INFO     | handflow.training | Epochs: 1000
+2026-03-20 20:16:51 | INFO     | handflow.training | Batch Size: 4
+2026-03-20 20:16:51 | INFO     | handflow.training | Learning Rate: 0.0001
+2026-03-20 20:16:51 | INFO     | handflow.training | Output: models/hand_action.keras
+2026-03-20 20:16:51 | INFO     | handflow.training | ============================================================
+2026-03-20 20:16:51 | INFO     | handflow.training | 
+ Loading preprocessed data from cache (both hands)...
+2026-03-20 20:16:51 | INFO     | handflow.training | ✅ Data is loaded and merged from both hands
+2026-03-20 20:16:51 | INFO     | handflow.training |    Training: 6567 samples
+2026-03-20 20:16:51 | INFO     | handflow.training |    Validation: 1159 samples
+2026-03-20 20:16:51 | INFO     | handflow.training |    Data shape: (6567, 12, 96)
+2026-03-20 20:16:51 | INFO     | handflow.training |    ✅ Input dimension for model: 96 features
+2026-03-20 20:16:51 | INFO     | handflow.training | 
+🔨 Building TCN model...
+2026-03-20 20:16:51 | INFO     | handflow.trainer | On-the-fly augmentation enabled
+2026-03-20 20:16:51 | INFO     | handflow.training | 
+Starting training...
+2026-03-20 20:16:51 | INFO     | handflow.trainer | Class weights computed:
+2026-03-20 20:16:51 | INFO     | handflow.trainer |   none: 3209 samples, weight=0.186
+2026-03-20 20:16:51 | INFO     | handflow.trainer |   horizontal_swipe: 410 samples, weight=1.456
+2026-03-20 20:16:51 | INFO     | handflow.trainer |   swipeup: 170 samples, weight=3.512
+2026-03-20 20:16:51 | INFO     | handflow.trainer |   thumb_index_swipe: 314 samples, weight=1.901
+2026-03-20 20:16:51 | INFO     | handflow.trainer |   thumb_middle_swipe: 170 samples, weight=3.512
+2026-03-20 20:16:51 | INFO     | handflow.trainer |   5_fingers_close: 227 samples, weight=2.630
+2026-03-20 20:16:51 | INFO     | handflow.trainer |   pointyclick: 150 samples, weight=3.980
+2026-03-20 20:16:51 | INFO     | handflow.trainer |   middleclick: 102 samples, weight=5.853
+2026-03-20 20:16:51 | INFO     | handflow.trainer |   touch_hover: 668 samples, weight=0.894
+2026-03-20 20:16:51 | INFO     | handflow.trainer |   touch_hold: 620 samples, weight=0.963
+2026-03-20 20:16:51 | INFO     | handflow.trainer |   touch: 527 samples, weight=1.133
+2026-03-20 20:16:51 | INFO     | handflow.trainer | Class weighting enabled for training
+2026-03-20 20:16:51 | INFO     | handflow.trainer | Callbacks will monitor: val_loss (loss), val_accuracy (accuracy)
+2026-03-20 20:16:51 | INFO     | handflow.trainer | Early stopping patience: 25 epochs
+2026-03-20 20:16:51 | INFO     | handflow.trainer | Training with on-the-fly augmentation...
+2026-03-20 20:32:11 | INFO     | handflow.training | 
+ Final Evaluation:
+2026-03-20 20:32:12 | INFO     | handflow.trainer | Logged confusion matrix to W&B
+2026-03-20 20:32:12 | INFO     | handflow.training |    loss: 0.0206
+2026-03-20 20:32:12 | INFO     | handflow.training |    compile_metrics: 0.9957
+2026-03-20 20:32:12 | INFO     | handflow.training | 
+💾 Saving model to models/hand_action.keras
+2026-03-20 20:32:12 | INFO     | handflow.trainer | Model saved to models/hand_action.keras
+2026-03-20 20:32:12 | INFO     | handflow.training | 
+✅ Training complete!
+2026-03-20 20:32:12 | INFO     | handflow.training |    Best validation accuracy: 0.9957
