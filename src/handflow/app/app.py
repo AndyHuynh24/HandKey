@@ -1709,7 +1709,10 @@ class settingTab(ctk.CTkFrame):
 
         # Camera setting
         self._create_section(scroll, "Camera", [
+            ("Camera Source", "camera_source", getattr(self.setting.camera, 'source', 'webcam'), "dropdown", ["webcam", "esp32"]),
             ("Camera Index", "camera_index", self.setting.camera.index, "entry"),
+            ("ESP32 Serial Port", "esp32_port", getattr(self.setting.camera, 'esp32_serial_port', '/dev/cu.usbmodem101'), "entry"),
+            ("ESP32 Baud Rate", "esp32_baud", getattr(self.setting.camera, 'esp32_baud_rate', 2000000), "entry"),
             ("Flip Horizontal", "flip_h", self.setting.camera.flip_horizontal, "switch"),
             ("Flip Vertical", "flip_v", self.setting.camera.flip_vertical, "switch"),
             ("Swap Hands", "swap_hands", self.setting.camera.swap_hands, "switch"),
@@ -1763,7 +1766,14 @@ class settingTab(ctk.CTkFrame):
 
         ctk.CTkLabel(row, text=label, width=160, anchor="w").pack(side="left")
 
-        if widget_type == "entry":
+        if widget_type == "dropdown":
+            options = args[0] if args else []
+            var = ctk.StringVar(value=str(value))
+            dropdown = ctk.CTkComboBox(row, values=options, variable=var, width=150, state="readonly")
+            dropdown.pack(side="left")
+            setattr(self, f"_{key}_var", var)
+
+        elif widget_type == "entry":
             entry = ctk.CTkEntry(row, width=100)
             entry.insert(0, str(value))
             entry.pack(side="left")
@@ -1795,9 +1805,18 @@ class settingTab(ctk.CTkFrame):
     def _save_setting(self):
         """Save all setting."""
         # Camera
+        if hasattr(self, '_camera_source_var'):
+            self.setting.camera.source = self._camera_source_var.get()
         if hasattr(self, '_camera_index_widget'):
             try:
                 self.setting.camera.index = int(self._camera_index_widget.get())
+            except ValueError:
+                pass
+        if hasattr(self, '_esp32_port_widget'):
+            self.setting.camera.esp32_serial_port = self._esp32_port_widget.get()
+        if hasattr(self, '_esp32_baud_widget'):
+            try:
+                self.setting.camera.esp32_baud_rate = int(self._esp32_baud_widget.get())
             except ValueError:
                 pass
         if hasattr(self, '_flip_h_var'):

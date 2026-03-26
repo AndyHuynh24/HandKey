@@ -19,8 +19,14 @@ scipy>=1.13.0
 pyautogui>=0.9.54
 keyboard>=0.13.5
 
-# GUI
-PyQt6>=6.6.0
+# GUI (NiceGUI = modern web UI, customtkinter = fallback)
+nicegui>=2.0.0
+pywebview>=5.0
+customtkinter>=5.2.0
+Pillow>=10.0.0
+
+# Data Models
+pydantic>=2.0.0
 
 # Configuration & Utils
 pyyaml>=6.0
@@ -29,6 +35,12 @@ click>=8.1.0
 
 # Experiment Tracking
 wandb>=0.16.0
+
+# Screen Capture
+mss>=0.9.0
+
+# ESP32 Camera (serial)
+pyserial>=3.5
 
 # macOS specific (for always-on-top corner markers and mouse control)
 # Install with: pip install pyobjc-framework-Cocoa pyobjc-framework-Quartz

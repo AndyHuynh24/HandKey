@@ -115,6 +115,120 @@ from handflow.actions import ActionExecutor
 SCREEN_OVERLAY_SET_ID = 20  # From screen_overlay_macropad module
 
 
+class ESP32Camera:
+    """Camera capture from ESP32 over serial, mimicking cv2.VideoCapture interface."""
+
+    FRAME_START = b'\xff\xaa\xbb\xcc'
+    FRAME_END = b'\xcc\xbb\xaa\xff'
+
+    def __init__(self, serial_port: str, baud_rate: int = 2000000):
+        self._port = serial_port
+        self._baud = baud_rate
+        self._ser = None
+        self._opened = False
+        self._buf = b''
+
+    def open(self):
+        """Open the serial connection."""
+        try:
+            import serial
+            self._ser = serial.Serial(self._port, self._baud, timeout=2)
+            import time
+            time.sleep(2)  # Wait for ESP32 to initialize
+            self._ser.reset_input_buffer()
+            self._opened = True
+            self._buf = b''
+        except Exception:
+            self._opened = False
+
+    def isOpened(self) -> bool:
+        return self._opened and self._ser is not None
+
+    def read(self):
+        """Read one frame from ESP32 serial. Returns (success, frame) like cv2.VideoCapture."""
+        if not self.isOpened():
+            return False, None
+
+        try:
+            # Find frame start marker
+            buf = self._buf if self._buf else self._ser.read(1024)
+            attempts = 0
+            while attempts < 50:
+                pos = buf.find(self.FRAME_START)
+                if pos >= 0:
+                    buf = buf[pos + 4:]
+                    break
+                new = self._ser.read(1024)
+                if not new:
+                    attempts += 1
+                    continue
+                buf = buf[-3:] + new
+                attempts += 1
+            else:
+                self._buf = b''
+                return False, None
+
+            # Read frame size (4 bytes, little-endian)
+            while len(buf) < 4:
+                chunk = self._ser.read(4 - len(buf))
+                if not chunk:
+                    self._buf = b''
+                    return False, None
+                buf += chunk
+
+            frame_size = int.from_bytes(buf[:4], 'little')
+            buf = buf[4:]
+
+            if frame_size <= 0 or frame_size > 80000:
+                self._ser.reset_input_buffer()
+                self._buf = b''
+                return False, None
+
+            # Read JPEG data + end marker
+            needed = frame_size + 4
+            while len(buf) < needed:
+                remaining = needed - len(buf)
+                chunk = self._ser.read(remaining)
+                if not chunk:
+                    self._buf = b''
+                    return False, None
+                buf += chunk
+
+            jpeg_data = buf[:frame_size]
+            end_marker = buf[frame_size:frame_size + 4]
+            self._buf = buf[frame_size + 4:]
+
+            if end_marker != self.FRAME_END:
+                self._ser.reset_input_buffer()
+                self._buf = b''
+                return False, None
+
+            # Decode JPEG
+            img = np.frombuffer(jpeg_data, dtype=np.uint8)
+            frame = cv2.imdecode(img, cv2.IMREAD_COLOR)
+            if frame is None:
+                return False, None
+
+            return True, frame
+
+        except Exception:
+            return False, None
+
+    def set(self, prop, value):
+        """No-op for compatibility with cv2.VideoCapture.set()."""
+        pass
+
+    def release(self):
+        """Close the serial connection."""
+        if self._ser is not None:
+            try:
+                self._ser.close()
+            except Exception:
+                pass
+            self._ser = None
+        self._opened = False
+
+
 class DetectionWindow(ctk.CTkToplevel):
     """
     Detection window showing camera preview and debug info.
@@ -525,22 +639,30 @@ class DetectionWindow(ctk.CTkToplevel):
                 pass
 
         cam_idx = self.setting.camera.index
+        camera_source = getattr(self.setting.camera, 'source', 'webcam')
         consecutive_failures = 0
         max_failures = 30  # Stop after 30 consecutive frame read failures
 
         try:
-            self._cap = cv2.VideoCapture(cam_idx)
-
-            # Use 1920x1080 for high quality recording
-            # Resized to smaller resolution internally for processing
-            self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
-            self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
-            self._cap.set(cv2.CAP_PROP_FPS, 30)
-            # Minimize buffer for lowest latency (1 frame = most recent)
-            self._cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+            if camera_source == "esp32":
+                esp32_port = getattr(self.setting.camera, 'esp32_serial_port', '/dev/cu.usbmodem101')
+                esp32_baud = getattr(self.setting.camera, 'esp32_baud_rate', 2000000)
+                self.logger.info(f"[Detection] Opening ESP32 camera on {esp32_port} @ {esp32_baud}")
+                self._cap = ESP32Camera(esp32_port, esp32_baud)
+                self._cap.open()
+            else:
+                self._cap = cv2.VideoCapture(cam_idx)
+                # Use 1920x1080 for high quality recording
+                # Resized to smaller resolution internally for processing
+                self._cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+                self._cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+                self._cap.set(cv2.CAP_PROP_FPS, 30)
+                # Minimize buffer for lowest latency (1 frame = most recent)
+                self._cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
             if not self._cap.isOpened():
-                self.logger.error(f"[Detection] Error: Could not open camera {cam_idx}")
+                source_desc = f"ESP32 on {esp32_port}" if camera_source == "esp32" else f"camera {cam_idx}"
+                self.logger.error(f"[Detection] Error: Could not open {source_desc}")
                 self._running = False
                 return
 

@@ -55,7 +55,7 @@ HandFlow is an end-to-end gesture recognition system that turns a standard webca
     <td align="center">
       <b>24-Button Paper Macro Pad</b><br/>
       <!-- TODO: Add demo gif/video showing the printed paper macropad in action -->
-      <i>Print a foldable A4 sheet with ArUco markers — 2 sets of 12 buttons each</i>
+      <i>Print a foldable A4 sheet with ArUco markers — 3 sets of 8 buttons each</i>
       <img src="public/Demo/24buttonmacropad.gif" width="400" />
     </td>
   </tr>
@@ -69,18 +69,36 @@ HandFlow is an end-to-end gesture recognition system that turns a standard webca
 
 **Screen Macro Pad** — 12-button on-screen macro pad overlay with ArUco markers for camera-based detection. Each button maps to custom keyboard shortcuts, app launches, or action sequences.
 
-**Paper Macro Pad** — Print a foldable A4 sheet with ArUco markers to create a physical 24-button macro pad (2 swappable sets of 12). Per-button action bindings configured through the GUI.
+**Paper Macro Pad** — Print a foldable A4 sheet with ArUco markers that folds into a triangular prism with 3 faces of 8 buttons each (24 buttons total). Per-button action bindings configured through the GUI.
 
-**Real-Time Performance** — ~25 FPS on CPU with a 907 KB TFLite model. OneEuro filtering for smooth cursor tracking. FPS-invariant velocity features for consistent behavior across hardware.
+**Real-Time Performance** — ~25–30 FPS on CPU with a 907 KB TFLite model, capped at 20 FPS for consistent data feeding to the gesture model. OneEuro filtering for smooth cursor tracking. FPS-invariant velocity features for consistent behavior across hardware.
+
+## Engineering Highlights
+
+### Macro Pad Prototyping — 15+ Design Iterations
+
+The paper macro pad required extensive physical prototyping to find the optimal marker arrangement. Over 15 prototypes were designed, printed, and tested to balance competing constraints:
+
+- **Marker placement vs. button density** — Maximizing the number of usable buttons while keeping enough ArUco markers visible for reliable detection at varying angles and distances.
+- **Hand occlusion tolerance** — During normal use, the user's hand covers parts of the sheet. Marker positions were iterated to ensure that at least enough markers remain visible for accurate grid reconstruction, even when multiple buttons are pressed in sequence.
+- **Origami-inspired foldable design** — The final A4 layout folds into a triangular prism with 3 faces of 8 buttons each (24 buttons total), inspired by origami folding techniques. The prism form factor keeps one active face angled toward the camera at all times, while allowing the user to rotate to a different set by simply flipping the prism.
+- **Camera angle robustness** — Tested across different webcam heights, tilt angles, and lighting conditions to ensure consistent detection without requiring precise camera placement.
+
+### Marker Occlusion Recovery Algorithm
+
+A core engineering challenge was maintaining stable spatial mapping when markers are partially or fully occluded by the user's hand. The detection pipeline uses an 8-marker layout (4 corners + 4 edge midpoints, with fallback bottom-corner markers) and implements a multi-stage recovery strategy:
+
+1. **Geometric estimation from visible markers** — When a marker is occluded, its position is estimated using the known spatial relationships between all markers. For example, a missing corner can be reconstructed from adjacent edge midpoints and the opposite corner via vector arithmetic.
+2. **Cached position fallback** — If too few markers are visible for geometric estimation, the system falls back to cached positions from recent frames, maintaining continuity during brief occlusions.
+3. **Perspective-aware grid subdivision** — The recovered 4-corner detection region is subdivided into the button grid using perspective-correct interpolation, ensuring buttons remain accurately mapped even under partial homography distortion.
+
+This approach enables reliable button detection even when 3-4 out of 8 markers are simultaneously occluded — a common scenario during active use.
 
 ## Architecture
 
-```
-Camera ──> MediaPipe Hands ──> Feature Engineer (96 features) ──> TCN Model ──> Action Executor
-  │              │                                                                     │
-  │              v                                                                     v
-  └──────> ArUco Detection ──> Screen Mapping / MacroPad Grid ──────────────────> OS Control
-```
+<p align="center">
+  <img src="public/Demo/architecture.png" alt="HandFlow System Architecture" width="800" />
+</p>
 
 ### Pipeline
 
@@ -162,9 +180,7 @@ The primary architecture is a **TCN with residual dilated causal convolutions**,
 | Pooling | Concatenated global average + global max pooling (256-dim) |
 | Classifier head | Dense(64, ReLU) &rarr; Dropout(0.1) &rarr; Dense(11, softmax) |
 | Model size | 2.7 MB (Keras) &rarr; 907 KB (TFLite, 66% reduction via quantization) |
-| Inference | ~25 FPS end-to-end on CPU (including MediaPipe + feature extraction + ArUco) |
-
-**Custom layer — `SoftMotionWeighting`:** A velocity gate that computes frame-to-frame motion magnitude, passes it through a sigmoid, and element-wise multiplies the input. This suppresses noisy features when the hand is idle and amplifies signal during active movement.
+| Inference | ~25–30 FPS end-to-end on CPU (including MediaPipe + feature extraction + ArUco), capped at 20 FPS for data feeding |
 
 **Alternative architectures** (all swappable via config): LSTM (2-layer, 128/64 units), GRU (2-layer, 128/64 units), 1D-CNN (3-layer with BatchNorm + MaxPooling), Transformer (2 blocks, 4-head attention with learned positional encoding).
 

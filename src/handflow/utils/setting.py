@@ -48,6 +48,9 @@ class CameraSettings(BaseModel):
     flip_horizontal: bool = True
     flip_vertical: bool = False
     swap_hands: bool = False
+    source: str = "webcam"  # "webcam" or "esp32"
+    esp32_serial_port: str = "/dev/cu.usbmodem101"
+    esp32_baud_rate: int = 2000000
 
 class MouseSettings(BaseModel):
     """Mouse control settings."""
