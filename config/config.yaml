@@ -53,7 +53,7 @@ model:
   hidden_units: 128
   num_layers: 2
   dropout: 0.1
-  num_classes: 11
+  num_classes: 17
   model_path: "models/hand_action.tflite"
 
 # Training Configuration
