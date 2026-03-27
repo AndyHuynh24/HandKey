@@ -737,25 +737,36 @@ class GestureDetector:
                     self.executor.execute_sequence(valid_actions)
 
     def _draw_prob_bars(self, image: np.ndarray, right_active: bool, left_active: bool) -> np.ndarray:
-        """Draw probability visualization bars (scaled for small frame)"""
+        """Draw probability visualization bars — auto-scales to fit any number of classes."""
         h, w, _ = image.shape
-        colors = [(245, 117, 16), (117, 245, 16), (16, 117, 245), (245, 200, 16),
-                  (200, 117, 245), (16, 245, 200), (245, 16, 117), (117, 16, 245)]
+        n_classes = len(self.gesture_classes)
 
-        # Scaled for 640x360 frame
-        bar_spacing = 18
-        bar_height = 12
-        font_scale = 0.4
+        colors = [
+            (245, 117, 16), (117, 245, 16), (16, 117, 245), (245, 200, 16),
+            (200, 117, 245), (16, 245, 200), (245, 16, 117), (117, 16, 245),
+            (16, 200, 117), (200, 245, 16), (117, 16, 200), (245, 16, 200),
+            (16, 245, 117), (200, 16, 117), (117, 200, 16), (16, 117, 200),
+            (200, 200, 16),
+        ]
+
+        # Auto-scale: fit all bars in available height (leave top/bottom margin)
+        margin = 4
+        top_margin = 20
+        available_h = h - top_margin - margin
+        bar_spacing = max(available_h // n_classes, 10)
+        bar_height = max(bar_spacing - 3, 7)
+        font_scale = 0.32 if n_classes > 14 else 0.38
         font_thickness = 1
-        margin = 5
-        start_y = 30
+        bar_max_len = 55
+        start_y = top_margin
 
         # Right hand bars (right side of screen)
         if right_active:
             for num, prob in enumerate(self.res_right):
-                bar_length = int(prob * 60)  # Scaled down bar length
+                if num >= n_classes:
+                    break
+                bar_length = int(prob * bar_max_len)
 
-                # Right-aligned rectangle
                 x2 = w - margin
                 x1 = x2 - bar_length
                 y1 = start_y + num * bar_spacing
@@ -764,10 +775,9 @@ class GestureDetector:
                 color = colors[num % len(colors)]
                 cv2.rectangle(image, (x1, y1), (x2, y2), color, -1)
 
-                # Right-aligned text
-                label = self.gesture_classes[num] if num < len(self.gesture_classes) else f"class_{num}"
+                label = self.gesture_classes[num]
                 (text_w, _), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, font_scale, font_thickness)
-                text_x = w - text_w - margin
+                text_x = x1 - text_w - 3
                 text_y = y1 + bar_height - 2
 
                 cv2.putText(image, label, (text_x, text_y),
@@ -776,9 +786,10 @@ class GestureDetector:
         # Left hand bars (left side of screen)
         if left_active:
             for num, prob in enumerate(self.res_left):
-                bar_length = int(prob * 60)
+                if num >= n_classes:
+                    break
+                bar_length = int(prob * bar_max_len)
 
-                # Left-aligned rectangle
                 x1 = margin
                 x2 = margin + bar_length
                 y1 = start_y + num * bar_spacing
@@ -787,9 +798,9 @@ class GestureDetector:
                 color = colors[num % len(colors)]
                 cv2.rectangle(image, (x1, y1), (x2, y2), color, -1)
 
-                # Left-aligned text
-                label = self.gesture_classes[num] if num < len(self.gesture_classes) else f"class_{num}"
-                cv2.putText(image, label, (margin, y1 + bar_height - 2),
+                label = self.gesture_classes[num]
+                text_x = x2 + 3
+                cv2.putText(image, label, (text_x, y1 + bar_height - 2),
                            cv2.FONT_HERSHEY_SIMPLEX, font_scale, (255, 255, 255), font_thickness, cv2.LINE_AA)
 
         return image

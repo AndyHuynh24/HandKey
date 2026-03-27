@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """Export trained Keras models to TFLite for fast inference."""
-
+#python scripts/export.py --input models/hand_action.keras
 from __future__ import annotations
 
 import argparse

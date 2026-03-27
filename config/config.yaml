@@ -50,9 +50,9 @@ model:
     - touch_hold
     - touch
   input_dim: 96
-  hidden_units: 128
-  num_layers: 2
-  dropout: 0.1
+  hidden_units: 192
+  num_layers: 3
+  dropout: 0.15
   num_classes: 17
   model_path: "models/hand_action.tflite"
 

@@ -537,8 +537,8 @@ mouse:
   outer_deadzone: 0.014
   activation_threshold: 0.06
 inference:
-  confidence_threshold: 0.5
-  stability_window: 4
+  confidence_threshold: 0.7
+  stability_window: 5
   cooldown_frames: 12
   min_detection_confidence: 0.4
   min_tracking_confidence: 0.2
