@@ -34,6 +34,7 @@ class GUIDataCollector:
         self.flip_v_var = tk.BooleanVar(value=self.setting.camera.flip_vertical)
         self.swap_hands_var = tk.BooleanVar(value=False)
         
+        self.continuous_var = tk.BooleanVar(value=False)
         self.trigger_record = False # Flag to bridge UI events to loop
         self.is_running = False  # Track if collection is active
         self.stop_flag = False
@@ -76,6 +77,10 @@ class GUIDataCollector:
         # Batch Size
         ttk.Label(settings_frame, text="Batch:").grid(row=5, column=0, sticky="w", pady=5)
         ttk.Spinbox(settings_frame, from_=1, to=200, textvariable=self.batch_size_var, width=5).grid(row=5, column=1, sticky="w", padx=5)
+
+        # Continuous collecting
+        ttk.Label(settings_frame, text="Mode:").grid(row=6, column=0, sticky="w", pady=5)
+        ttk.Checkbutton(settings_frame, text="Continuous (auto-record)", variable=self.continuous_var).grid(row=6, column=1, sticky="w", padx=5)
 
         control_frame = ttk.LabelFrame(self.root, text="Controls", padding=10)
         control_frame.pack(fill="x", padx=10, pady=20)
@@ -137,18 +142,39 @@ class GUIDataCollector:
         return max(dirs) + 1
 
     def extract_keypoints(self, results, apply_x_flip_canon=False):
-        """Extract keypoints from the detected hand (max 1 hand)."""
+        """Extract keypoints from the detected hand.
+
+        Forces the recorded hand to match self.hand_selected regardless
+        of what MediaPipe's handedness classifier reports.
+        """
         if not results.multi_hand_landmarks:
             return np.zeros(21 * 4)
 
-        # Get the only hand (max_num_hands=1)
+        # If multiple hands detected, pick the one matching our selected label
+        # (accounting for flip/swap). If only one hand, just use it.
         hand_landmarks = results.multi_hand_landmarks[0]
+
+        if results.multi_handedness and len(results.multi_hand_landmarks) > 1:
+            target = self.hand_selected  # "right" or "left"
+            flip_h = self.flip_h_var.get()
+            swap_hands = self.swap_hands_var.get()
+
+            for idx, handedness in enumerate(results.multi_handedness):
+                label = handedness.classification[0].label.lower()
+                if flip_h:
+                    label = "right" if label == "left" else "left"
+                if swap_hands:
+                    label = "right" if label == "left" else "left"
+                if label == target:
+                    hand_landmarks = results.multi_hand_landmarks[idx]
+                    break
+
         kp = np.array([[res.x, res.y, res.z, 0.0] for res in hand_landmarks.landmark])
-        
+
         # Apply x-flip canonicalization for left hand to match right hand orientation
         if apply_x_flip_canon:
             kp[:, 0] = 1.0 - kp[:, 0]
-        
+
         return kp.flatten()
 
     def on_trigger(self, event=None):
@@ -193,16 +219,25 @@ class GUIDataCollector:
         self.current_sequence_id = self.get_next_sequence_id(self.base_path)
         
         self.cap = cv2.VideoCapture(cam_idx)
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-        
+        # Match real-time detection: capture at 1920x1080
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1920)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 1080)
+        self.cap.set(cv2.CAP_PROP_FPS, 30)
+        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+        # Match real-time detection resolutions
+        self._display_width = 640
+        self._display_height = 360
+        self._mp_process_width = 320
+        self._mp_process_height = 180
+
         if not self.cap.isOpened():
             messagebox.showerror("Error", f"Could not open camera {cam_idx}")
             return
 
         self.btn_record.state(['!disabled'])
         self.btn_launch.state(['disabled']) # Disable launch button while running
-        
+
         self.sequence_length = self.config.data.sequence_length
         self.batch_count = 0
         self.frame_num = 0
@@ -290,7 +325,8 @@ class GUIDataCollector:
 
         ret, frame = self.cap.read()
         if not ret:
-            self.stop_collection()
+            # Don't stop on a single failed read — camera may need a moment
+            self.root.after(10, self.process_frame)
             return
 
         # Calculate actual FPS
@@ -306,17 +342,27 @@ class GUIDataCollector:
         flip_v = self.flip_v_var.get()
         swap_hands = self.swap_hands_var.get()
 
-        # Image processing
+        # Match real-time detection pipeline:
+        # 1. Resize to display resolution (640x360)
+        frame = cv2.resize(frame, (self._display_width, self._display_height), interpolation=cv2.INTER_NEAREST)
+
+        # 2. Flip on small frame
         if flip_h:
             frame = cv2.flip(frame, 1)
         if flip_v:
             frame = cv2.flip(frame, 0)
 
-        image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        image.flags.writeable = False
-        results = self.hands_module.process(image)
-        image.flags.writeable = True
-        image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+        # 3. Create even smaller frame for MediaPipe (320x180) — same as detection
+        frame_mp = cv2.resize(frame, (self._mp_process_width, self._mp_process_height), interpolation=cv2.INTER_NEAREST)
+
+        # 4. Run MediaPipe on small frame (matching detection pipeline)
+        mp_image = cv2.cvtColor(frame_mp, cv2.COLOR_BGR2RGB)
+        mp_image.flags.writeable = False
+        results = self.hands_module.process(mp_image)
+        mp_image.flags.writeable = True
+
+        # Use display frame for drawing
+        image = frame
 
         # Draw and Extract
         self.draw_debug(image, results, flip_h, swap_hands)
@@ -351,12 +397,14 @@ class GUIDataCollector:
     def handle_collection(self, image, results, flip_h, swap_hands):
         gesture = self.gesture_var.get()
 
-        # Check trigger flag (from button or key bindings)
-        if self.trigger_record and not self.is_recording:
-            self.is_recording = True
-            self.trigger_record = False
+        # Check trigger flag — only start if not already recording
+        if self.trigger_record:
+            if not self.is_recording:
+                self.is_recording = True
+            self.trigger_record = False  # Always consume the flag
 
-        # Check if this is a "noise" gesture that should auto-collect
+        # Continuous mode or noise gesture = auto-collect
+        continuous = self.continuous_var.get()
         is_noise_gesture = gesture.lower() in ['none', 'nonezoom', 'touch_hover', 'touch_hold']
 
         # Check if batch is done
@@ -368,9 +416,9 @@ class GUIDataCollector:
             return
 
         if not self.is_recording:
-            # Auto-trigger for noise gestures
-            if is_noise_gesture:
-                self.is_recording = True  # Auto-start recording
+            # Auto-trigger for noise gestures or continuous mode
+            if is_noise_gesture or continuous:
+                self.is_recording = True
                 
             # Standby UI
             cv2.putText(image, f"COLLECTING: {gesture}" + (" [AUTO]" if is_noise_gesture else ""), (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)

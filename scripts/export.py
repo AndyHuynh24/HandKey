@@ -86,7 +86,11 @@ def export_to_tflite(
         ]
         converter._experimental_lower_tensor_list_ops = False
         converter.experimental_enable_resource_variables = True
-        
+
+        # Float16 quantization: halves model size, no accuracy loss
+        converter.optimizations = [tf.lite.Optimize.DEFAULT]
+        converter.target_spec.supported_types = [tf.float16]
+
         tflite_model = converter.convert()
     
     # Save

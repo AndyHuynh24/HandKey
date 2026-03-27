@@ -40,6 +40,12 @@ model:
     - 5_fingers_close
     - pointyclick
     - middleclick
+    - thumb_touch
+    - thumb_hold
+    - thumb_release
+    - capture_touch
+    - capture_release
+    - capture_hold
     - touch_hover
     - touch_hold
     - touch
