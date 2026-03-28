@@ -250,6 +250,7 @@ class DetectionWindow(ctk.CTkToplevel):
         self._disable_drawing = True  # D key to toggle
         self._fps_cap_enabled = True  # C key to toggle
         self._screen_overlay_debug = False  # O key to toggle - shows macropad detection info
+        self._actions_disabled = False  # A key to toggle - disables all actions, shows only prob bars
 
         # Recording state (R key to toggle) - simple queue-based
         self._recording = False
@@ -280,7 +281,7 @@ class DetectionWindow(ctk.CTkToplevel):
         self._overlay_no_hover_threshold: int = 5  # Hide after this many frames
 
         # Window setup (16:9 aspect ratio to match training data)
-        self.title("HandFlow v2.0 - Detection Preview [H/V/S/D/C/O/R/Q]")
+        self.title("HandFlow v2.0 - Detection Preview [H/V/S/D/C/O/R/A/Q]")
         self.geometry("1280x750")  # 720 + status bar
 
         # UI Elements
@@ -319,7 +320,7 @@ class DetectionWindow(ctk.CTkToplevel):
             self._knuckle_macropad = KnuckleMacroPad(setting, executor)
             # Set knuckle button labels for visual feedback
             knuckle_btns = getattr(setting, 'knuckle_macropad_buttons', {})
-            knuckle_labels = [knuckle_btns.get(i, type('', (), {'label': ''})()).label or f"Knuckle {i+1}" for i in range(6)]
+            knuckle_labels = [knuckle_btns.get(i, type('', (), {'label': ''})()).label or f"Knuckle {i+1}" for i in range(7)]
             self.logger.info("[Detection] Knuckle macropad initialized")
 
         # Initialize screen overlay macropad if enabled
@@ -388,6 +389,8 @@ class DetectionWindow(ctk.CTkToplevel):
         self.bind("<Key-O>", self._toggle_screen_overlay_debug)
         self.bind("<Key-r>", self._toggle_recording)
         self.bind("<Key-R>", self._toggle_recording)
+        self.bind("<Key-a>", self._toggle_actions)
+        self.bind("<Key-A>", self._toggle_actions)
         self.bind("<Key-q>", lambda e: self.stop())
         self.bind("<Key-Q>", lambda e: self.stop())
         self.bind("<Escape>", lambda e: self.stop())
@@ -425,6 +428,13 @@ class DetectionWindow(ctk.CTkToplevel):
         self.gesture_Detector.set_data_rate_limit(self._fps_cap_enabled)
         self._update_status_label()
         self.logger.debug(f"Data Rate Limit: {'ON (20 FPS)' if self._fps_cap_enabled else 'OFF (unlimited)'}")
+
+    def _toggle_actions(self, event=None):
+        """Toggle all actions on/off. When off, only prob bars show."""
+        self._actions_disabled = not self._actions_disabled
+        self.gesture_Detector.actions_disabled = self._actions_disabled
+        self._update_status_label()
+        self.logger.debug(f"Actions: {'DISABLED' if self._actions_disabled else 'ENABLED'}")
 
     def _toggle_screen_overlay_debug(self, event=None):
         """Toggle screen overlay macropad debug info."""
@@ -570,8 +580,9 @@ class DetectionWindow(ctk.CTkToplevel):
         cap = "ON" if self._fps_cap_enabled else "OFF"
         overlay_dbg = "ON" if self._screen_overlay_debug else "OFF"
         rec = "REC" if self._recording else "OFF"
+        act = "OFF" if self._actions_disabled else "ON"
 
-        status_text = f"H:{h_flip} V:{v_flip} Swap:{swap} Draw:{draw} Cap:{cap} OvlDbg:{overlay_dbg} Rec:{rec}"
+        status_text = f"H:{h_flip} V:{v_flip} Swap:{swap} Draw:{draw} Cap:{cap} Act:{act} Rec:{rec}"
         self.status_label.configure(text=status_text)
 
         # Visual indicator for recording
@@ -827,6 +838,12 @@ class DetectionWindow(ctk.CTkToplevel):
                     if 'Right' in detections and 'gesture' in detections['Right']:
                         right_hand_gesture = detections['Right']['gesture']
 
+                    # Skip all actions when disabled (prob bars still show)
+                    if self._actions_disabled:
+                        with self._lock:
+                            self._latest_frame = output
+                        continue
+
                     # 6. Screen Overlay MacroPad handling (if enabled)
                     # Hide overlay when knuckle macropad is active (palm up)
                     knuckle_active_now = (self._knuckle_macropad is not None and
@@ -1058,7 +1075,7 @@ class DetectionWindow(ctk.CTkToplevel):
             # Set labels from knuckle config
             knuckle_btns = getattr(self.setting, 'knuckle_macropad_buttons', {})
             labels = []
-            for i in range(6):
+            for i in range(7):
                 btn = knuckle_btns.get(i)
                 if btn and hasattr(btn, 'label') and btn.label:
                     labels.append(btn.label)
@@ -1066,7 +1083,16 @@ class DetectionWindow(ctk.CTkToplevel):
                     labels.append(f"Knuckle {i+1}")
             self._paper_feedback.set_button_labels(labels)
 
-            if hover != self._paper_feedback_last_hover:
+            # Check for activation (click feedback)
+            act_time = self._knuckle_macropad._last_activated_time
+            if act_time > self._paper_feedback_last_activation_time:
+                act_idx = self._knuckle_macropad._last_activated_idx
+                if act_idx is not None:
+                    self._paper_feedback.show_click_feedback(act_idx)
+                    self._paper_feedback_last_activation_time = act_time
+
+            # Hover feedback
+            elif hover != self._paper_feedback_last_hover:
                 self._paper_feedback.set_hovered_button(hover)
                 self._paper_feedback_last_hover = hover
 

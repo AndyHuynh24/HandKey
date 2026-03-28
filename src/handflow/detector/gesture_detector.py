@@ -79,6 +79,7 @@ class GestureDetector:
         # touch_hover/touch_hold need cursor updates every frame, not just on model ticks
         self._last_right_gesture = "none"
         self._last_left_gesture = "none"
+        self.actions_disabled = False  # When True, skip all action execution
 
         # Thumb desktop switch: touch → hold (2 frames) → release
         self._thumb_awaiting_hold = False
@@ -577,8 +578,8 @@ class GestureDetector:
                 gesture, confidence, self.res_right = self._predict('Right', features)
                 detections['Right'] = {'gesture': gesture, 'confidence': confidence}
 
-                # Handle gesture
-                self._handle_gesture('Right', gesture, confidence)
+                if not self.actions_disabled:
+                    self._handle_gesture('Right', gesture, confidence)
 
         # Left hand prediction - only run TCN model every N frames
         if run_gesture_model and self.left_lock and len(self.left_sequence) == self.sequence_length:
@@ -590,7 +591,8 @@ class GestureDetector:
                 gesture, confidence, self.res_left = self._predict('Left', features)
                 detections['Left'] = {'gesture': gesture, 'confidence': confidence}
 
-                self._handle_gesture('Left', gesture, confidence)
+                if not self.actions_disabled:
+                    self._handle_gesture('Left', gesture, confidence)
 
         # Draw probability bars (before resetting locks) - skip if drawing disabled
         if not disable_drawing:

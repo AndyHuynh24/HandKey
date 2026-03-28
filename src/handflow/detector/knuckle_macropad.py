@@ -29,8 +29,16 @@ class KnuckleMacroPad:
         (4, 10, 11),  # Middle PIP→DIP
         (5, 11, 12),  # Middle DIP→TIP
     ]
+    TIP_BUTTONS = {2, 5}      # Buttons at fingertips
+    MID_BUTTONS = {1, 4}      # Middle knuckle buttons
+    BASE_BUTTONS = {0, 3}     # Base knuckle buttons (MCP)
+    PALM_BUTTON_IDX = 6
 
-    SIZE_RATIO = 0.95
+    BASE_WIDTH = 0.95         # Base knuckle: same width as before
+    MID_WIDTH = 1.8           # Middle knuckle: wider
+    TIP_WIDTH = 1.8           # Tip: wider
+    HEIGHT_RATIO = 0.95       # Normal height
+    TIP_EXTEND = 0.45         # Extra height for tip, extended upward only
     ACTIVATION_COOLDOWN = 0.4  # seconds
 
     def __init__(self, setting: Setting, executor: ActionExecutor):
@@ -40,15 +48,17 @@ class KnuckleMacroPad:
 
         self._left_active = False
         self._right_active = False
-        self._last_activation_times = {i: 0.0 for i in range(6)}
+        self._last_activation_times = {i: 0.0 for i in range(7)}
         self._frame_count = 0
 
         self._left_buttons = []
         self._right_buttons = []
         self._hovered_left = None
         self._hovered_right = None
+        self._last_activated_idx = None
+        self._last_activated_time = 0.0
 
-        self.logger.info("[KnuckleMacroPad] Initialized — 6 buttons per hand (index + middle)")
+        self.logger.info("[KnuckleMacroPad] Initialized — 7 buttons per hand (index + middle + palm)")
 
     def _get_xy(self, kp, landmark_id):
         """Get (x, y) from flattened keypoints array (21*4)."""
@@ -85,43 +95,84 @@ class KnuckleMacroPad:
     def _compute_buttons(self, kp):
         """Compute rotated rectangle buttons from keypoints.
         Returns list of (idx, center_x, center_y, corners) for each button.
-        corners is a (4, 2) array of the rectangle vertices in normalized coords.
         """
         buttons = []
+
+        # Finger segment buttons
         for idx, lm_a, lm_b in self.BUTTONS:
             ax, ay = self._get_xy(kp, lm_a)
             bx, by = self._get_xy(kp, lm_b)
 
-            # Center
-            cx = (ax + bx) / 2
-            cy = (ay + by) / 2
-
-            # Direction vector and length
             dx = bx - ax
             dy = by - ay
             length = np.sqrt(dx * dx + dy * dy)
             if length < 1e-6:
                 continue
 
-            # Unit vectors along and perpendicular to segment
-            ux = dx / length  # along finger
+            ux = dx / length  # unit vector along finger (a→b)
             uy = dy / length
             px = -uy  # perpendicular
             py = ux
 
-            # Half sizes (95% of segment length for both width and height)
-            half_h = length * self.SIZE_RATIO / 2  # along finger
-            half_w = length * self.SIZE_RATIO / 2  # perpendicular
+            # Width per button type
+            if idx in self.BASE_BUTTONS:
+                w_ratio = self.BASE_WIDTH
+            elif idx in self.MID_BUTTONS:
+                w_ratio = self.MID_WIDTH
+            else:
+                w_ratio = self.TIP_WIDTH
 
-            # 4 corners of rotated rectangle
+            half_w = length * w_ratio / 2
+            half_h = length * self.HEIGHT_RATIO / 2
+
+            # Tip buttons: extend upward (toward fingertip) only, don't grow downward
+            if idx in self.TIP_BUTTONS:
+                extend = length * self.TIP_EXTEND
+                cx = (ax + bx) / 2 + ux * extend / 2
+                cy = (ay + by) / 2 + uy * extend / 2
+                half_h = (length * self.HEIGHT_RATIO + extend) / 2
+            else:
+                cx = (ax + bx) / 2
+                cy = (ay + by) / 2
+
             corners = np.array([
                 [cx - px * half_w - ux * half_h, cy - py * half_w - uy * half_h],
                 [cx + px * half_w - ux * half_h, cy + py * half_w - uy * half_h],
                 [cx + px * half_w + ux * half_h, cy + py * half_w + uy * half_h],
                 [cx - px * half_w + ux * half_h, cy - py * half_w + uy * half_h],
             ])
-
             buttons.append((idx, cx, cy, corners))
+
+        # Palm button: wrist(0) → middle MCP(9), width from index MCP(5) to pinky MCP(17)
+        wx, wy = self._get_xy(kp, 0)    # wrist
+        mx, my = self._get_xy(kp, 9)    # middle MCP
+        ix, iy = self._get_xy(kp, 5)    # index MCP
+        pkx, pky = self._get_xy(kp, 17) # pinky MCP
+
+        cx = (wx + mx) / 2
+        cy = (wy + my) / 2
+
+        dx = mx - wx
+        dy = my - wy
+        length = np.sqrt(dx * dx + dy * dy)
+        palm_width = np.sqrt((pkx - ix) ** 2 + (pky - iy) ** 2)
+
+        if length > 1e-6 and palm_width > 1e-6:
+            ux = dx / length
+            uy = dy / length
+            px = -uy
+            py = ux
+
+            half_h = length * 0.85 / 2
+            half_w = palm_width * 0.9 / 2
+
+            corners = np.array([
+                [cx - px * half_w - ux * half_h, cy - py * half_w - uy * half_h],
+                [cx + px * half_w - ux * half_h, cy + py * half_w - uy * half_h],
+                [cx + px * half_w + ux * half_h, cy + py * half_w + uy * half_h],
+                [cx - px * half_w + ux * half_h, cy - py * half_w + uy * half_h],
+            ])
+            buttons.append((self.PALM_BUTTON_IDX, cx, cy, corners))
 
         return buttons
 
@@ -173,15 +224,14 @@ class KnuckleMacroPad:
             for i in range(21):
                 left_kp_screen[i * 4] = 1.0 - left_kp_screen[i * 4]  # flip x back
 
-        # Check palm orientation (use screen-space coords)
+        # Only left hand knuckle macropad (right hand disabled)
         self._left_active = (left_kp_screen is not None and
                              self.is_palm_up(left_kp_screen))
-        self._right_active = (right_kp is not None and np.any(right_kp) and
-                              self.is_palm_up(right_kp))
+        self._right_active = False
 
         # Compute button rectangles in screen space
         self._left_buttons = self._compute_buttons(left_kp_screen) if self._left_active else []
-        self._right_buttons = self._compute_buttons(right_kp) if self._right_active else []
+        self._right_buttons = []
 
         activated_left = None
         activated_right = None
@@ -196,24 +246,12 @@ class KnuckleMacroPad:
             for idx, cx, cy, corners in self._left_buttons:
                 if self._point_in_rotated_rect(tip_x, tip_y, corners):
                     self._hovered_left = idx
-                    # Activate on touch gesture
                     if right_gesture in touch_gestures:
                         if now - self._last_activation_times[idx] > self.ACTIVATION_COOLDOWN:
                             self._last_activation_times[idx] = now
                             activated_left = idx
-                            self._execute_button(idx)
-                    break
-
-        # Left hand interacts with right hand's knuckle buttons
-        if self._right_active and left_index_tip is not None:
-            tip_x, tip_y = left_index_tip
-            for idx, cx, cy, corners in self._right_buttons:
-                if self._point_in_rotated_rect(tip_x, tip_y, corners):
-                    self._hovered_right = idx
-                    if left_gesture in touch_gestures:
-                        if now - self._last_activation_times[idx] > self.ACTIVATION_COOLDOWN:
-                            self._last_activation_times[idx] = now
-                            activated_right = idx
+                            self._last_activated_idx = idx
+                            self._last_activated_time = now
                             self._execute_button(idx)
                     break
 
@@ -222,17 +260,15 @@ class KnuckleMacroPad:
     def _execute_button(self, idx: int):
         """Execute the action mapped to a knuckle button."""
         knuckle_buttons = getattr(self.setting, 'knuckle_macropad_buttons', {})
-        if not knuckle_buttons:
-            return
 
         from handflow.utils.setting import MacroPadButton
-        btn_config = knuckle_buttons.get(idx, MacroPadButton())
+        btn_config = knuckle_buttons.get(idx, MacroPadButton()) if knuckle_buttons else MacroPadButton()
+        label = btn_config.label or f"Knuckle {idx + 1}"
+        self.logger.info(f"[KnuckleMacroPad] Activated: {label} (btn {idx})")
+
         actions = btn_config.get_actions()
         if not actions:
             return
-
-        label = btn_config.label or f"Knuckle {idx + 1}"
-        self.logger.info(f"[KnuckleMacroPad] Activated: {label} (btn {idx})")
 
         import threading
         def run_actions():
