@@ -312,6 +312,16 @@ class DetectionWindow(ctk.CTkToplevel):
         # detection_mode: "balanced" or "motion_priority"
         self.macropad_manager = MacroPadManager(setting, executor, detection_mode="balanced")
 
+        # Knuckle macropad (palm-up hand = 6 knuckle buttons)
+        self._knuckle_macropad = None
+        if getattr(self.setting, 'knuckle_macropad_enabled', False):
+            from handflow.detector.knuckle_macropad import KnuckleMacroPad
+            self._knuckle_macropad = KnuckleMacroPad(setting, executor)
+            # Set knuckle button labels for visual feedback
+            knuckle_btns = getattr(setting, 'knuckle_macropad_buttons', {})
+            knuckle_labels = [knuckle_btns.get(i, type('', (), {'label': ''})()).label or f"Knuckle {i+1}" for i in range(6)]
+            self.logger.info("[Detection] Knuckle macropad initialized")
+
         # Initialize screen overlay macropad if enabled
         if self.setting.screen_overlay_macropad_enabled:
             from handflow.app.screen_overlay_macropad import ScreenOverlayMacroPad
@@ -818,10 +828,15 @@ class DetectionWindow(ctk.CTkToplevel):
                         right_hand_gesture = detections['Right']['gesture']
 
                     # 6. Screen Overlay MacroPad handling (if enabled)
-                    # Overlay displays markers, macropad_manager handles detection
-                    # Only right hand can trigger screen overlay (left hand gestures ignored)
+                    # Hide overlay when knuckle macropad is active (palm up)
+                    knuckle_active_now = (self._knuckle_macropad is not None and
+                                         self._knuckle_macropad.is_active())
                     if self._screen_overlay is not None and self.setting.screen_overlay_macropad_enabled:
-                        self._handle_screen_overlay(right_hand_gesture)
+                        if knuckle_active_now:
+                            if self._screen_overlay.is_visible():
+                                self._screen_overlay.hide()
+                        else:
+                            self._handle_screen_overlay(right_hand_gesture)
                     
                     # 7. Draw debug overlays (ArUco and MacroPad) - skip if drawing disabled
                     if not self._disable_drawing:
@@ -852,7 +867,33 @@ class DetectionWindow(ctk.CTkToplevel):
                         if not self._disable_drawing:
                             output = self.macropad_manager.draw_debug(output)
 
-                    # 8. Screen overlay debug info (press 'O' to toggle)
+                    # 8. Knuckle MacroPad (palm-up hand = 6 buttons per hand)
+                    if self._knuckle_macropad is not None:
+                        left_kp = detections.get('Left', {}).get('keypoints', None)
+                        right_kp = detections.get('Right', {}).get('keypoints', None)
+
+                        left_tip = None
+                        right_tip = None
+                        l_gesture = detections.get('Left', {}).get('gesture', 'none')
+                        r_gesture = detections.get('Right', {}).get('gesture', 'none')
+
+                        if 'Left' in detections and 'index_tip' in detections['Left']:
+                            lt = detections['Left']['index_tip']
+                            left_tip = (lt[0], lt[1])
+                        if 'Right' in detections and 'index_tip' in detections['Right']:
+                            rt = detections['Right']['index_tip']
+                            right_tip = (rt[0], rt[1])
+
+                        act_left, act_right = self._knuckle_macropad.update(
+                            left_kp, right_kp, left_tip, right_tip, l_gesture, r_gesture
+                        )
+
+                        # Feedback handled on main thread in _process_paper_feedback()
+
+                        if not self._disable_drawing and self._knuckle_macropad.is_active():
+                            output = self._knuckle_macropad.draw_debug(output, w_small, h_small)
+
+                    # 9. Screen overlay debug info (press 'O' to toggle)
                     if self._screen_overlay_debug and self._screen_overlay:
                         overlay_visible = self._screen_overlay.is_visible()
                         detected_set = self.macropad_manager._detector.current_set_id
@@ -1007,6 +1048,31 @@ class DetectionWindow(ctk.CTkToplevel):
         Shows hover/click feedback overlay for paper macropad interactions.
         Only active when screen overlay is NOT visible.
         """
+        # Knuckle macropad feedback (takes priority when active)
+        if self._knuckle_macropad is not None and self._knuckle_macropad.is_active():
+            # Hover
+            h_left = self._knuckle_macropad._hovered_left
+            h_right = self._knuckle_macropad._hovered_right
+            hover = h_left if h_left is not None else h_right
+
+            # Set labels from knuckle config
+            knuckle_btns = getattr(self.setting, 'knuckle_macropad_buttons', {})
+            labels = []
+            for i in range(6):
+                btn = knuckle_btns.get(i)
+                if btn and hasattr(btn, 'label') and btn.label:
+                    labels.append(btn.label)
+                else:
+                    labels.append(f"Knuckle {i+1}")
+            self._paper_feedback.set_button_labels(labels)
+
+            if hover != self._paper_feedback_last_hover:
+                self._paper_feedback.set_hovered_button(hover)
+                self._paper_feedback_last_hover = hover
+
+            self._paper_feedback.update()
+            return
+
         # Skip if screen overlay is visible (it has its own feedback)
         if self._screen_overlay and self._screen_overlay.is_visible():
             # Hide paper feedback if it was showing

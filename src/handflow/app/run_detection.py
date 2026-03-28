@@ -15,6 +15,9 @@ from handflow.app.detection_window import DetectionWindow
 
 
 def main():
+    from handflow.utils.logging import setup_logging
+    setup_logging(level="INFO", log_file="logs/detection.log")
+
     ctk.set_appearance_mode("dark")
 
     setting = load_setting("config/handflow_setting.yaml")

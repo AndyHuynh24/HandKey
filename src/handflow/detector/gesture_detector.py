@@ -80,6 +80,11 @@ class GestureDetector:
         self._last_right_gesture = "none"
         self._last_left_gesture = "none"
 
+        # Thumb desktop switch: touch → hold (2 frames) → release
+        self._thumb_awaiting_hold = False
+        self._thumb_hold_count = 0
+        self._thumb_switched = False
+
         self._fps_start_time = time.time()
         self._fps_counter = 0
         self.current_fps = 0.0
@@ -613,6 +618,12 @@ class GestureDetector:
         if 'Left' in detections and left_tip is not None:
             detections['Left']['index_tip'] = (left_tip[0], left_tip[1], 0.0)
 
+        # Add raw landmark arrays for knuckle macropad (21 landmarks x,y,z,vis)
+        if right_kp is not None:
+            detections.setdefault('Right', {})['keypoints'] = right_kp
+        if left_kp is not None:
+            detections.setdefault('Left', {})['keypoints'] = left_kp
+
         return image, detections
 
     def _predict(self, hand: str, features: np.ndarray):
@@ -640,12 +651,27 @@ class GestureDetector:
             self.left_predictions.append(class_idx)
             preds = list(self.left_predictions)
 
-        # Most common in last [# of stability_window] predictions
-        last_preds = preds[-self.stability_window:]
+        gesture_name = self.gesture_classes[class_idx]
+
+        # Thumb: after thumb_touch, 2 more frames of thumb_touch/thumb_hold = switch
+        if self._thumb_awaiting_hold:
+            if gesture_name in ("thumb_touch", "thumb_hold") and confidence > self.threshold:
+                self._thumb_hold_count += 1
+                if self._thumb_hold_count >= 3:
+                    self._thumb_awaiting_hold = False
+                    self._thumb_hold_count = 0
+                    return "thumb_hold", confidence, output
+                return "none", 0.0, output
+            else:
+                self._thumb_hold_count = 0
+                self._thumb_awaiting_hold = False
+
+        # Per-gesture stability window
+        window = 4 if gesture_name == "thumb_touch" else self.stability_window
+        last_preds = preds[-window:]
         if last_preds:
             most_common = Counter(last_preds).most_common(1)[0][0]
             if most_common == class_idx and confidence > self.threshold:
-                gesture_name = self.gesture_classes[class_idx]
                 return gesture_name, confidence, output
 
         return "none", 0.0, output
@@ -674,6 +700,19 @@ class GestureDetector:
         # Below threshold: end drag immediately and skip
         if confidence < self.threshold:
             self._end_drag()
+            return
+
+        # Capture gestures: detect but don't execute actions (not yet implemented)
+        if gesture in ("capture_touch", "capture_hold", "capture_release"):
+            return
+
+        # Thumb desktop switch state machine — bypass cooldown
+        if gesture in ("thumb_touch", "thumb_hold", "thumb_release"):
+            if hand == 'Right':
+                self.right_cooldown = 0
+            else:
+                self.left_cooldown = 0
+            self._handle_thumb_desktop(gesture)
             return
 
         if gesture == "touch_hover":
@@ -735,6 +774,23 @@ class GestureDetector:
                 else:
                     # Multiple actions - execute as sequence with delays
                     self.executor.execute_sequence(valid_actions)
+
+    def _handle_thumb_desktop(self, gesture: str):
+        """Thumb desktop switch: touch → hold(2 frames) → switch right, release → switch back."""
+        if gesture == "thumb_touch":
+            if not self._thumb_switched:
+                self._thumb_awaiting_hold = True
+                self._thumb_hold_count = 0
+        elif gesture == "thumb_hold":
+            if not self._thumb_switched:
+                self._thumb_switched = True
+                self.executor.execute("shortcut", "cmd+tab")
+        elif gesture == "thumb_release":
+            if self._thumb_switched:
+                self._thumb_switched = False
+                self.executor.execute("shortcut", "cmd+tab")
+            self._thumb_awaiting_hold = False
+            self._thumb_hold_count = 0
 
     def _draw_prob_bars(self, image: np.ndarray, right_active: bool, left_active: bool) -> np.ndarray:
         """Draw probability visualization bars — auto-scales to fit any number of classes."""

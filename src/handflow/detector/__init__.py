@@ -12,6 +12,7 @@ from handflow.detector.screen_detector import (
 from handflow.detector.macropad_manager import MacroPadManager
 from handflow.detector.macropad_detector import MacroPadDetector
 from handflow.detector.handedness_tracker import HandTracker, TrackedHand
+from handflow.detector.knuckle_macropad import KnuckleMacroPad
 from .gesture_detector import GestureDetector
 
 __all__ = [
@@ -27,5 +28,6 @@ __all__ = [
     'MacroPadDetector',
     'HandTracker',
     'TrackedHand',
+    'KnuckleMacroPad',
 ]
 

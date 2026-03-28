@@ -378,7 +378,7 @@ class Trainer:
         checkpoint_dir.mkdir(parents=True, exist_ok=True)
         callbacks.append(
             keras.callbacks.ModelCheckpoint(
-                filepath=str(checkpoint_dir / f"{run_name}_best.h5"),
+                filepath=str(checkpoint_dir / f"{run_name}_best.keras"),
                 monitor=acc_metric,
                 mode="max",
                 save_best_only=True,
