@@ -95,8 +95,8 @@ HandFlow is an end-to-end gesture recognition system that turns a standard webca
   </tr>
 </table>
 
-### Old versions v0
-https://github.com/AndyHuynh24/HandFlow/issues/1#issue-3579983604
+### Old versions V0
+[https://github.com/AndyHuynh24/HandFlow/issues/1#issue-3579983604](https://github.com/user-attachments/assets/874403e4-094d-43fe-b69d-a0671dce15b1)
 
 
 ## Architecture
