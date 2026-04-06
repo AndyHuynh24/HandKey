@@ -4,7 +4,7 @@
   <p align="center">
     Real-time hand gesture recognition for touchless human-computer interaction
     <br />
-    <a href="#demo">View Demo</a> &middot; <a href="#getting-started">Get Started</a> &middot; <a href="#architecture">Architecture</a>
+    <a href="#demo">View Demo</a> &middot;<a href="#architecture">Architecture</a>
   </p>
 </p>
 
