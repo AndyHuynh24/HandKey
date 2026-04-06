@@ -18,7 +18,7 @@
 
 ---
 
-HandFlow is an end-to-end gesture recognition system that turns a standard webcam into a touchless input device. It combines a lightweight temporal convolutional network with computer vision to support **free-space gesture control**, **virtual touchscreens**, and **printable paper macro pads** — all running at **real-time speed on CPU**.
+HandFlow is an end-to-end gesture recognition system - built to improve productivity - that turns a standard webcam into a touchless input device for your computer. It combines a lightweight temporal convolutional network with computer vision to support **free-space gesture control, virtual touchscreens (with on-screen macropad), paper macro pads, finger knuckle's buttons and live capture with Gemini support** — all running at **real-time speed on CPU**. All features are fully customizable to any action on computer via shortcut bindings or built in action-choices in the app, which would help you navigate, control and perform computer actions faster and more productive.
 
 ## Demo
 
