@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -72,7 +73,56 @@ Examples:
         dest="learning_rate",
         help="Starting learning rate (overrides config)",
     )
+    # --- AkashTrainer sweep-friendly knobs (all optional; only override config when set) ---
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=None,
+        dest="batch_size",
+        help="Override config training.batch_size",
+    )
+    parser.add_argument(
+        "--dropout",
+        type=float,
+        default=None,
+        help="Override config model.dropout (if your architecture uses it)",
+    )
+    parser.add_argument(
+        "--hidden-units",
+        type=int,
+        default=None,
+        dest="hidden_units",
+        help="Override config model.hidden_units (if your architecture uses it)",
+    )
+    parser.add_argument(
+        "--num-layers",
+        type=int,
+        default=None,
+        dest="num_layers",
+        help="Override config model.num_layers (if your architecture uses it)",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=str,
+        default=None,
+        dest="output_dir",
+        help="Write trained model + results.json here (AkashTrainer mounts /output and pushes it to a GitHub branch)",
+    )
     return parser.parse_args()
+
+
+def _maybe_setattr(obj, name: str, value) -> bool:
+    """Set obj.name = value only if value is not None AND obj already has the attribute.
+
+    Returns True if set, False otherwise. Used to apply sweep CLI overrides without
+    crashing when the active config schema doesn't define a given knob.
+    """
+    if value is None:
+        return False
+    if not hasattr(obj, name):
+        return False
+    setattr(obj, name, value)
+    return True
 
 
 def apply_feature_engineering(
@@ -151,6 +201,11 @@ def main() -> None:
         config.training.epochs = args.epochs
     if args.learning_rate:
         config.training.learning_rate = args.learning_rate
+    # Sweep-friendly overrides (only applied if the config schema defines them)
+    _maybe_setattr(config.training, "batch_size", args.batch_size)
+    _maybe_setattr(config.model, "dropout", args.dropout)
+    _maybe_setattr(config.model, "hidden_units", args.hidden_units)
+    _maybe_setattr(config.model, "num_layers", args.num_layers)
 
     # Check resume path exists
     if args.resume:
@@ -235,6 +290,84 @@ def main() -> None:
 
     logger.info("\n✅ Training complete!")
     logger.info(f"   Best validation accuracy: {max(history.history['val_accuracy']):.4f}")
+
+    # --- AkashTrainer integration ----------------------------------------------
+    # When this script is run inside the AkashTrainer container (or whenever
+    # --output-dir is set), write a results.json + copy the trained model into
+    # that directory. The container packages anything in /output/ and pushes it
+    # to a `trained-output/<timestamp>` GitHub branch; AkashTrainer's monitor
+    # then reads results.json and populates the sweep leaderboard.
+    output_dir = args.output_dir or os.environ.get("AKASH_OUTPUT_DIR") or "/output"
+    try:
+        _write_sweep_results(output_dir, args, config, history, metrics, output_path, logger)
+    except Exception as e:
+        # Never fail the training because of result-reporting issues.
+        logger.warning(f"Could not write sweep results to {output_dir}: {e}")
+
+
+def _write_sweep_results(output_dir, args, config, history, metrics, model_path, logger):
+    """Write /output/results.json and copy the trained model so AkashTrainer can pick it up."""
+    import json
+    import os
+    import shutil
+
+    if not os.path.isdir(output_dir):
+        try:
+            os.makedirs(output_dir, exist_ok=True)
+        except OSError:
+            logger.info(f"Skipping sweep results — {output_dir} is not writable")
+            return
+
+    h = history.history if hasattr(history, "history") else {}
+
+    def _last(key, default=None):
+        seq = h.get(key) or []
+        return float(seq[-1]) if seq else default
+
+    def _arr(key):
+        return [float(x) for x in (h.get(key) or [])]
+
+    results = {
+        # Scalars — these show up as sortable columns on the sweep leaderboard.
+        "val_accuracy": _last("val_accuracy"),
+        "val_loss": _last("val_loss"),
+        "train_accuracy": _last("accuracy"),
+        "train_loss": _last("loss"),
+        "best_val_accuracy": float(max(h["val_accuracy"])) if h.get("val_accuracy") else None,
+        "epochs_trained": len(h.get("loss", [])),
+        # Arrays — render as overlaid curves on the run detail page.
+        "val_acc_curve": _arr("val_accuracy"),
+        "val_loss_curve": _arr("val_loss"),
+        "train_acc_curve": _arr("accuracy"),
+        "train_loss_curve": _arr("loss"),
+        # Echo hyperparams so they're stored alongside metrics (useful for the
+        # parallel-coordinates plot if you sweep over them).
+        "hyperparams": {
+            "architecture": getattr(config.model, "architecture", None),
+            "epochs": getattr(config.training, "epochs", None),
+            "batch_size": getattr(config.training, "batch_size", None),
+            "learning_rate": getattr(config.training, "learning_rate", None),
+            "dropout": getattr(config.model, "dropout", None),
+            "hidden_units": getattr(config.model, "hidden_units", None),
+            "num_layers": getattr(config.model, "num_layers", None),
+        },
+        # Echo any final eval metrics the trainer returned (precision, f1, etc.)
+        "final_eval": {k: float(v) for k, v in metrics.items() if isinstance(v, (int, float))},
+    }
+
+    results_path = os.path.join(output_dir, "results.json")
+    with open(results_path, "w") as f:
+        json.dump(results, f, indent=2)
+    logger.info(f"✅ Wrote sweep results → {results_path}")
+
+    # Copy the trained model alongside so the output branch has both
+    if model_path and os.path.exists(model_path):
+        try:
+            dest = os.path.join(output_dir, os.path.basename(str(model_path)))
+            shutil.copy2(str(model_path), dest)
+            logger.info(f"✅ Copied model → {dest}")
+        except (OSError, shutil.SameFileError) as e:
+            logger.warning(f"Could not copy model to {output_dir}: {e}")
 
 
 if __name__ == "__main__":
