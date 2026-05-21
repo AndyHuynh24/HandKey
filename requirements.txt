@@ -1,0 +1,11 @@
+# Pinned to match Dockerfile.train so HandFlow can be trained via the generic
+# AkashTrainer container (or any other CI/runner that does pip install -r requirements.txt).
+#
+# Note: this requires the runner to have a TensorFlow-compatible CUDA setup.
+# Stock CUDA 12.x is fine for tensorflow==2.16.1.
+
+tensorflow==2.16.1
+numpy>=1.24.0,<2.0.0
+scikit-learn>=1.3.0
+pyyaml>=6.0
+pydantic>=2.0.0
